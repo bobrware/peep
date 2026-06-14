@@ -3,8 +3,6 @@ export type GenerateObjectOptions<TSchema = unknown> = {
   prompt: string;
 };
 
-export type LlmPort = {
-  generateObject: <TObject, TSchema = unknown>(
-    options: GenerateObjectOptions<TSchema>,
-  ) => Promise<TObject>;
+export type LlmPort<TObject = unknown, TSchema = unknown> = {
+  generateObject: (options: GenerateObjectOptions<TSchema>) => Promise<TObject>;
 };
