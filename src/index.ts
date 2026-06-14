@@ -1,6 +1,7 @@
 export { z } from "zod";
 export { createLlmPort } from "./adapters/ai-sdk/provider.js";
 export { defineConfig } from "./config/define.js";
+export { loadConfig } from "./config/loader.js";
 export { buildReviewPrompt } from "./core/prompt.js";
 export { reviewPullRequest } from "./core/pipeline.js";
 export { findingSchema } from "./core/schema.js";
