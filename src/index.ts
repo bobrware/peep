@@ -1,4 +1,12 @@
 export { z } from "zod";
+export { defineConfig } from "./config/define.js";
+export { buildReviewPrompt } from "./core/prompt.js";
+export { reviewPullRequest } from "./core/pipeline.js";
 export { findingSchema } from "./core/schema.js";
 export type { Finding } from "./core/schema.js";
+export type { BuildReviewPromptOptions } from "./core/prompt.js";
+export type { ReviewPullRequestOptions } from "./core/pipeline.js";
 export type { ReviewResult } from "./core/types.js";
+export type { GenerateObjectOptions, LlmPort } from "./ports/llm.js";
+export type { PeepConfig } from "./ports/config.js";
+export type { VcsPort } from "./ports/vcs.js";
