@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check"
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test"
   },
   "dependencies": {
     "zod": "^3.25.76"
@@ -17,6 +18,7 @@
   "devDependencies": {
     "oxfmt": "^0.54.0",
     "oxlint": "^1.69.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.8"
   }
 }
