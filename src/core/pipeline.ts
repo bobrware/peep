@@ -1,5 +1,6 @@
 import type { LlmPort } from "../ports/llm.js";
 import type { VcsPort } from "../ports/vcs.js";
+import { annotateDiff } from "./diff.js";
 import { buildReviewPrompt } from "./prompt.js";
 
 export type ReviewPullRequestOptions<TObject, TSchema = unknown> = {
@@ -16,7 +17,7 @@ export async function reviewPullRequest<TObject, TSchema = unknown>({
   schema,
 }: ReviewPullRequestOptions<TObject, TSchema>): Promise<TObject> {
   const diff = await vcs.fetchPullRequestDiff();
-  const prompt = buildReviewPrompt({ rules, diff });
+  const prompt = buildReviewPrompt({ rules, diff: annotateDiff(diff) });
 
   return llm.generateObject({ schema, prompt });
 }

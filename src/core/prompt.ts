@@ -14,15 +14,16 @@ export function buildReviewPrompt({ rules, diff }: BuildReviewPromptOptions): st
 Rules:
 ${formattedRules}
 
-Return only findings that identify concrete, actionable issues in the diff.
+Return only findings that identify concrete, actionable issues in the annotated diff.
 Each finding must include:
 - path: the exact file path from the diff
-- line: the exact changed or context line number in the diff
-- side: "RIGHT" for added/current lines or "LEFT" for deleted/base lines
-- startLine and startSide only when the issue spans multiple contiguous diff lines on the same side
+- line: the exact line number from a RIGHT:<line> or LEFT:<line> coordinate shown in the annotated diff
+- side: "RIGHT" for a RIGHT:<line> coordinate or "LEFT" for a LEFT:<line> coordinate
+- startLine and startSide only when the issue spans multiple contiguous coordinates on the same side
 - message: a concise review comment
+Use only coordinates explicitly shown in the annotated diff. Do not infer or guess line numbers.
 If there are no concrete issues, return an empty array.
 
-Diff:
+Annotated diff:
 ${diff}`;
 }
