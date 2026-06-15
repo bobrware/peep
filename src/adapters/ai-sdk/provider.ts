@@ -1,5 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, Output, type FlexibleSchema } from "ai";
+import { generateText, NoObjectGeneratedError, Output, type FlexibleSchema } from "ai";
 import type { LlmPort } from "../../ports/llm.js";
 
 export type AiSdkProviderConfig = {
@@ -21,13 +21,29 @@ export function createLlmPort<TObject = unknown, TSchema extends FlexibleSchema 
 
   return {
     async generateObject({ schema, prompt }) {
-      const result = await generateText({
-        model: openrouter(model),
-        output: Output.json(),
-        prompt: `${prompt}\n\nReturn valid JSON only. Do not include markdown fences, prose, or explanations.`,
-      });
+      const promptWithJsonInstruction = `${prompt}\n\nReturn valid JSON only. Do not include markdown fences, prose, or explanations.`;
 
-      return parseSchemaObject(schema, result.output) as TObject;
+      try {
+        const result = await generateText({
+          model: openrouter(model),
+          output: Output.json(),
+          prompt: promptWithJsonInstruction,
+        });
+
+        return parseSchemaObject(schema, result.output) as TObject;
+      } catch (error) {
+        if (!NoObjectGeneratedError.isInstance(error)) {
+          throw error;
+        }
+
+        if (error.text === undefined) {
+          throw error;
+        }
+
+        const json = JSON.parse(stripMarkdownFence(error.text));
+
+        return parseSchemaObject(schema, json) as TObject;
+      }
     },
   };
 }
@@ -68,4 +84,11 @@ function unwrapArrayContainer(json: unknown): unknown {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stripMarkdownFence(text: string): string {
+  const trimmed = text.trim();
+  const match = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(trimmed);
+
+  return match?.[1] ?? trimmed;
 }

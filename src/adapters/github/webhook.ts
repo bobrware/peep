@@ -91,7 +91,7 @@ export function parseGitHubWebhook({
   const number = pullRequestPayload.pull_request?.number;
   const title = pullRequestPayload.pull_request?.title;
   const body = pullRequestPayload.pull_request?.body;
-  const draft = pullRequestPayload.pull_request?.draft;
+  const draft = pullRequestPayload.pull_request?.draft ?? false;
   const author = pullRequestPayload.pull_request?.user?.login;
 
   if (
@@ -100,7 +100,6 @@ export function parseGitHubWebhook({
     name === undefined ||
     number === undefined ||
     title === undefined ||
-    draft === undefined ||
     author === undefined
   ) {
     throw new Error(`Invalid ${type} webhook payload.`);
