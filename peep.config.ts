@@ -39,22 +39,40 @@ export default defineConfig({
     "Review messages must be plain Markdown prose. Do not indent messages or wrap them in code fences.",
   ],
   on: {
-    "pull_request.opened": async ({ pr, agent }) => {
+    "pull_request.opened": async (context) => {
+      const { pr } = context;
+
       await pr.react("eyes");
 
       if (pr.draft) {
         return;
       }
 
-      await reviewReadyPullRequest({ pr, agent });
+      await acknowledgeReview(context);
+      await reviewReadyPullRequest(context);
     },
-    "pull_request.ready_for_review": reviewReadyPullRequest,
+    "pull_request.ready_for_review": async (context) => {
+      await acknowledgeReview(context);
+      await reviewReadyPullRequest(context);
+    },
+    "pull_request.synchronize": async (context) => {
+      const { pr } = context;
+
+      if (pr.draft) {
+        return;
+      }
+
+      await pr.react("eyes");
+      await reviewReadyPullRequest(context);
+    },
   },
 });
 
-async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): Promise<void> {
+async function acknowledgeReview({ pr }: PullRequestEventContext): Promise<void> {
   await pr.comment("👀 Peep is reviewing this PR.");
+}
 
+async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): Promise<void> {
   const findings = await agent.review<PepperFinding>({
     schema: z.array(pepperFindingSchema),
   });

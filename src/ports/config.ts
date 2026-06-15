@@ -8,6 +8,7 @@ export type PullRequestEventContext = {
 
 export type PullRequestOpenedContext = PullRequestEventContext;
 export type PullRequestReadyForReviewContext = PullRequestEventContext;
+export type PullRequestSynchronizeContext = PullRequestEventContext;
 
 export type PullRequestContext = {
   owner: string;
@@ -18,11 +19,21 @@ export type PullRequestContext = {
   author: string;
   draft: boolean;
   comment: (body: string) => Promise<void>;
+  listReviewComments: () => Promise<ReviewComment[]>;
   react: (content: ReactionContent) => Promise<void>;
   submitReview: <TFinding extends ReviewFinding>(
     findings: TFinding[],
     options?: SubmitReviewOptions,
   ) => Promise<void>;
+};
+
+export type ReviewComment = {
+  id: number;
+  body: string;
+  path?: string;
+  line?: number;
+  side?: "LEFT" | "RIGHT";
+  author?: string;
 };
 
 export type ReactionContent =
@@ -67,5 +78,6 @@ export type PeepConfig = {
     "pull_request.ready_for_review"?: (
       context: PullRequestReadyForReviewContext,
     ) => Promise<void> | void;
+    "pull_request.synchronize"?: (context: PullRequestSynchronizeContext) => Promise<void> | void;
   };
 };

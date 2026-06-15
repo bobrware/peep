@@ -7,7 +7,7 @@ export type VerifyGitHubSignatureOptions = {
 };
 
 export type GitHubPullRequestEvent = {
-  type: "pull_request.opened" | "pull_request.ready_for_review";
+  type: "pull_request.opened" | "pull_request.ready_for_review" | "pull_request.synchronize";
   installationId: number;
   repository: {
     owner: string;
@@ -30,9 +30,14 @@ export type GitHubPullRequestReadyForReviewEvent = GitHubPullRequestEvent & {
   type: "pull_request.ready_for_review";
 };
 
+export type GitHubPullRequestSynchronizeEvent = GitHubPullRequestEvent & {
+  type: "pull_request.synchronize";
+};
+
 export type GitHubWebhookEvent =
   | GitHubPullRequestOpenedEvent
-  | GitHubPullRequestReadyForReviewEvent;
+  | GitHubPullRequestReadyForReviewEvent
+  | GitHubPullRequestSynchronizeEvent;
 
 export type ParseGitHubWebhookOptions = {
   event: string;
@@ -120,6 +125,10 @@ function mapPullRequestAction(action: string | undefined): GitHubWebhookEvent["t
 
   if (action === "ready_for_review") {
     return "pull_request.ready_for_review";
+  }
+
+  if (action === "synchronize") {
+    return "pull_request.synchronize";
   }
 
   return undefined;

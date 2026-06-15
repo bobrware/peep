@@ -58,7 +58,7 @@ describe("parseGitHubWebhook", () => {
     expect(
       parseGitHubWebhook({
         event: "pull_request",
-        payload: { action: "synchronize" },
+        payload: { action: "closed" },
       }),
     ).toBeUndefined();
   });
@@ -88,6 +88,37 @@ describe("parseGitHubWebhook", () => {
         number: 42,
         title: "Add feature",
         body: "",
+        author: "alice",
+        draft: false,
+      },
+    });
+  });
+
+  it("maps pull_request synchronize payloads to the internal event", () => {
+    const event = parseGitHubWebhook({
+      event: "pull_request",
+      payload: {
+        action: "synchronize",
+        installation: { id: 123 },
+        repository: { name: "peep", owner: { login: "bobrware" } },
+        pull_request: {
+          number: 42,
+          title: "Add feature",
+          body: "Body",
+          draft: false,
+          user: { login: "alice" },
+        },
+      },
+    });
+
+    expect(event).toEqual({
+      type: "pull_request.synchronize",
+      installationId: 123,
+      repository: { owner: "bobrware", name: "peep" },
+      pullRequest: {
+        number: 42,
+        title: "Add feature",
+        body: "Body",
         author: "alice",
         draft: false,
       },

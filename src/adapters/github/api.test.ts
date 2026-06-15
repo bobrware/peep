@@ -42,7 +42,12 @@ describe("createGitHubPullRequestAdapter", () => {
   it("submits a body-only pull request review", async () => {
     const client: GitHubApiClient = {
       request: vi.fn(async (route: string) => ({
-        data: route.startsWith("GET ") ? "diff --git a/other.ts b/other.ts" : {},
+        data:
+          route === "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments"
+            ? []
+            : route.startsWith("GET ")
+              ? "diff --git a/other.ts b/other.ts"
+              : {},
       })),
     };
     const adapter = await createGitHubPullRequestAdapter({
@@ -80,8 +85,11 @@ describe("createGitHubPullRequestAdapter", () => {
   it("maps findings on diff lines to inline review comments", async () => {
     const client: GitHubApiClient = {
       request: vi.fn(async (route: string) => ({
-        data: route.startsWith("GET ")
-          ? `diff --git a/src/example.ts b/src/example.ts
+        data:
+          route === "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments"
+            ? []
+            : route.startsWith("GET ")
+              ? `diff --git a/src/example.ts b/src/example.ts
 index 1111111..2222222 100644
 --- a/src/example.ts
 +++ b/src/example.ts
@@ -91,7 +99,7 @@ index 1111111..2222222 100644
 +const added = true;
 +const alsoAdded = true;
  const after = true;`
-          : {},
+              : {},
       })),
     };
     const adapter = await createGitHubPullRequestAdapter({

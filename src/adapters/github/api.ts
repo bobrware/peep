@@ -3,6 +3,7 @@ import type { ReviewFinding } from "../../core/schema.js";
 import type {
   PullRequestContext,
   ReactionContent,
+  ReviewComment,
   SubmitReviewOptions,
 } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
@@ -87,6 +88,19 @@ export async function createGitHubPullRequestAdapter({
       });
     },
 
+    async listReviewComments() {
+      const response = await apiClient.request(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
+        {
+          owner,
+          repo,
+          pull_number: pullNumber,
+        },
+      );
+
+      return getReviewComments(response);
+    },
+
     async react(content) {
       logger.info({ owner, repo, pullNumber, content }, "reacting to pull request");
 
@@ -106,7 +120,13 @@ export async function createGitHubPullRequestAdapter({
       const comments = mapFindingsToReviewComments(findings, diff);
 
       logger.info(
-        { owner, repo, pullNumber, findings: findings.length, inlineComments: comments.length },
+        {
+          owner,
+          repo,
+          pullNumber,
+          findings: findings.length,
+          inlineComments: comments.length,
+        },
         "submitting pull request review",
       );
 
@@ -149,6 +169,35 @@ function buildReviewBody(findings: ReviewFinding[], options: SubmitReviewOptions
   return `Peep found ${findings.length} issue${findings.length === 1 ? "" : "s"}.`;
 }
 
+function getReviewComments(response: unknown): ReviewComment[] {
+  if (!isObject(response) || !Array.isArray(response.data)) {
+    throw new Error("GitHub review comments response did not contain array data.");
+  }
+
+  return response.data.flatMap((comment) => {
+    if (!isObject(comment) || typeof comment.id !== "number" || typeof comment.body !== "string") {
+      return [];
+    }
+
+    return [
+      {
+        id: comment.id,
+        body: comment.body,
+        path: typeof comment.path === "string" ? comment.path : undefined,
+        line: typeof comment.line === "number" ? comment.line : undefined,
+        side: comment.side === "LEFT" || comment.side === "RIGHT" ? comment.side : undefined,
+        author: getCommentAuthor(comment),
+      },
+    ];
+  });
+}
+
+function getCommentAuthor(comment: Record<string, unknown>): string | undefined {
+  const user = comment.user;
+
+  return isObject(user) && typeof user.login === "string" ? user.login : undefined;
+}
+
 function getStringData(response: unknown): string {
   if (
     typeof response === "object" &&
@@ -160,4 +209,8 @@ function getStringData(response: unknown): string {
   }
 
   throw new Error("GitHub pull request diff response did not contain string data.");
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

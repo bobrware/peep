@@ -24,6 +24,7 @@ describe("executeWebhookEvent", () => {
       author: "alice",
       draft: false,
       comment: vi.fn(async () => {}),
+      listReviewComments: vi.fn(async () => []),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
       submitReview,
@@ -104,6 +105,7 @@ describe("executeWebhookEvent", () => {
       author: "alice",
       draft: false,
       comment: vi.fn(async () => {}),
+      listReviewComments: vi.fn(async () => []),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
       submitReview: vi.fn(async () => {}),
@@ -125,6 +127,38 @@ describe("executeWebhookEvent", () => {
     expect(handler).toHaveBeenCalledOnce();
   });
 
+  it("dispatches pull_request.synchronize handlers", async () => {
+    const createPullRequestAdapter = vi.fn(async () => ({
+      owner: "bobrware",
+      repo: "peep",
+      number: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      comment: vi.fn(async () => {}),
+      listReviewComments: vi.fn(async () => []),
+      fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
+      react: vi.fn(async () => {}),
+      submitReview: vi.fn(async () => {}),
+    }));
+    const handler = vi.fn(async () => {});
+    const config: PeepConfig = {
+      github: { appId: "app", privateKey: "key", webhookSecret: "secret" },
+      llm: { provider: "openrouter", apiKey: "api-key", model: "model" },
+      rules: [],
+      on: { "pull_request.synchronize": handler },
+    };
+
+    await executeWebhookEvent({
+      config,
+      event: { ...event, type: "pull_request.synchronize" },
+      createPullRequestAdapter,
+    });
+
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
   it("allows configs to use finding schemas with custom fields", async () => {
     const pepperFindingSchema = findingSchema.extend({
       severity: z.enum(["bell", "ghost"]),
@@ -140,6 +174,7 @@ describe("executeWebhookEvent", () => {
       author: "alice",
       draft: false,
       comment: vi.fn(async () => {}),
+      listReviewComments: vi.fn(async () => []),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
       submitReview,
