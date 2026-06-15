@@ -9,7 +9,7 @@ import { reviewPullRequest } from "../core/pipeline.js";
 import { findingSchema, type Finding } from "../core/schema.js";
 import type { FlexibleSchema } from "ai";
 import type { LlmPort } from "../ports/llm.js";
-import type { PeepConfig } from "../ports/config.js";
+import type { PeepConfig, ReviewOptions } from "../ports/config.js";
 import { logger as defaultLogger, type PeepLogger } from "./logger.js";
 
 export type ExecuteWebhookEventOptions = {
@@ -60,13 +60,16 @@ export async function executeWebhookEvent({
   await handler({
     pr,
     agent: {
-      async review({ schema = findingSchema.array() } = {}) {
-        return reviewPullRequest({
+      async review<TFinding extends Finding = Finding>(options?: ReviewOptions) {
+        const schema = options?.schema ?? findingSchema.array();
+        const findings = await reviewPullRequest({
           vcs: pr,
           llm,
           rules: config.rules,
           schema,
         });
+
+        return findings as TFinding[];
       },
     },
   });
