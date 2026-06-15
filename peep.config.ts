@@ -1,8 +1,16 @@
 import { defineConfig, findingSchema, z } from "./src/index.js";
 
 const pepperSeveritySchema = z.enum(["bell", "jalapeno", "habanero", "ghost"]);
+const categorySchema = z.enum([
+  "correctness",
+  "security",
+  "performance",
+  "maintainability",
+  "readability",
+]);
 const pepperFindingSchema = findingSchema.extend({
   severity: pepperSeveritySchema,
+  category: categorySchema,
 });
 
 type PepperFinding = z.infer<typeof pepperFindingSchema>;
@@ -18,7 +26,7 @@ export default defineConfig({
   llm: {
     provider: "openrouter",
     apiKey: requiredEnv("OPENROUTER_API_KEY", "OPENROUTER_KEY"),
-    model: process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4",
+    model: process.env.OPENROUTER_MODEL ?? "z-ai/glm-5.1",
   },
   rules: [
     "Only report concrete correctness, security, or maintainability issues introduced by this diff.",
@@ -26,6 +34,7 @@ export default defineConfig({
     "Keep each finding concise and actionable.",
     "Rank severity as a pepper: bell is a nit, jalapeno is minor, habanero is major, ghost is critical.",
     "Use bell only for clear but low-impact issues; do not report speculative bell-pepper nits.",
+    "Classify each finding into exactly one category: correctness, security, performance, maintainability, or readability.",
   ],
   on: {
     "pull_request.opened": async ({ pr, agent }) => {
@@ -34,9 +43,11 @@ export default defineConfig({
       const findings = await agent.review<PepperFinding>({
         schema: z.array(pepperFindingSchema),
       });
-      const reviewFindings = findings.map(({ severity, ...finding }) => ({
+      const reviewFindings = findings.map(({ severity, category, ...finding }) => ({
         ...finding,
-        message: `${formatPepperSeverity(severity)} ${finding.message}`,
+        message: `${formatCategory(category)} | ${formatPepperSeverity(severity)} ${severity.charAt(0).toUpperCase() + severity.slice(1)}
+
+        ${finding.message}`,
       }));
 
       await pr.submitReview(reviewFindings, {
@@ -47,6 +58,21 @@ export default defineConfig({
     },
   },
 });
+
+function formatCategory(category: PepperFinding["category"]): string {
+  switch (category) {
+    case "correctness":
+      return "🐛 Correctness";
+    case "security":
+      return "🔒 Security";
+    case "performance":
+      return "⚡ Performance";
+    case "maintainability":
+      return "🧹 Maintainability";
+    case "readability":
+      return "📖 Readability";
+  }
+}
 
 function formatPepperSeverity(severity: PepperFinding["severity"]): string {
   switch (severity) {
