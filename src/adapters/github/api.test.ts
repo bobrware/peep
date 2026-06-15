@@ -17,6 +17,7 @@ describe("createGitHubPullRequestAdapter", () => {
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
       client,
     });
 
@@ -27,6 +28,7 @@ describe("createGitHubPullRequestAdapter", () => {
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
     });
     await expect(adapter.fetchPullRequestDiff()).resolves.toBe("diff --git a/file.ts b/file.ts");
     expect(client.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
@@ -53,6 +55,7 @@ describe("createGitHubPullRequestAdapter", () => {
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
       client,
     });
 
@@ -101,6 +104,7 @@ index 1111111..2222222 100644
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
       client,
     });
 
@@ -143,6 +147,7 @@ index 1111111..2222222 100644
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
       client,
     });
 
@@ -156,6 +161,37 @@ index 1111111..2222222 100644
         issue_number: 42,
         content: "eyes",
         headers: { accept: "application/vnd.github+json" },
+      },
+    );
+  });
+
+  it("creates pull request conversation comments", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({ data: {} })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      client,
+    });
+
+    await adapter.comment("Peep is reviewing this PR.");
+
+    expect(client.request).toHaveBeenCalledWith(
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+      {
+        owner: "bobrware",
+        repo: "peep",
+        issue_number: 42,
+        body: "Peep is reviewing this PR.",
       },
     );
   });

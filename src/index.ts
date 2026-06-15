@@ -26,7 +26,7 @@ export type { BuildReviewPromptOptions } from "./core/prompt.js";
 export type { ReviewPullRequestOptions } from "./core/pipeline.js";
 export type { ReviewResult } from "./core/types.js";
 export type { GenerateObjectOptions, LlmPort } from "./ports/llm.js";
-export type { PeepConfig } from "./ports/config.js";
+export type { PeepConfig, PullRequestEventContext } from "./ports/config.js";
 export type { VcsPort } from "./ports/vcs.js";
 export type { ExecuteWebhookEventOptions } from "./runtime/execute.js";
 export type { CreateWebhookServerOptions, StartWebhookServerOptions } from "./runtime/server.js";

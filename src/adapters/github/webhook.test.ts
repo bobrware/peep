@@ -33,6 +33,7 @@ describe("parseGitHubWebhook", () => {
           number: 42,
           title: "Add feature",
           body: "This adds a feature.",
+          draft: false,
           user: { login: "alice" },
         },
       },
@@ -47,6 +48,7 @@ describe("parseGitHubWebhook", () => {
         title: "Add feature",
         body: "This adds a feature.",
         author: "alice",
+        draft: false,
       },
     });
   });
@@ -59,6 +61,37 @@ describe("parseGitHubWebhook", () => {
         payload: { action: "synchronize" },
       }),
     ).toBeUndefined();
+  });
+
+  it("maps pull_request ready_for_review payloads to the internal event", () => {
+    const event = parseGitHubWebhook({
+      event: "pull_request",
+      payload: {
+        action: "ready_for_review",
+        installation: { id: 123 },
+        repository: { name: "peep", owner: { login: "bobrware" } },
+        pull_request: {
+          number: 42,
+          title: "Add feature",
+          body: null,
+          draft: false,
+          user: { login: "alice" },
+        },
+      },
+    });
+
+    expect(event).toEqual({
+      type: "pull_request.ready_for_review",
+      installationId: 123,
+      repository: { owner: "bobrware", name: "peep" },
+      pullRequest: {
+        number: 42,
+        title: "Add feature",
+        body: "",
+        author: "alice",
+        draft: false,
+      },
+    });
   });
 
   it("throws a clear error for malformed pull_request opened payloads", () => {

@@ -56,6 +56,7 @@ export async function executeWebhookEvent({
     title: event.pullRequest.title,
     body: event.pullRequest.body,
     author: event.pullRequest.author,
+    draft: event.pullRequest.draft,
     logger,
   });
   const llm = createLlm(config.llm);
