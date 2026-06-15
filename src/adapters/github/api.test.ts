@@ -111,4 +111,32 @@ index 1111111..2222222 100644
       },
     );
   });
+
+  it("reacts to the pull request", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({ data: {} })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      client,
+    });
+
+    await adapter.react("eyes");
+
+    expect(client.request).toHaveBeenCalledWith(
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions",
+      {
+        owner: "bobrware",
+        repo: "peep",
+        issue_number: 42,
+        content: "eyes",
+        headers: { accept: "application/vnd.github+json" },
+      },
+    );
+  });
 });

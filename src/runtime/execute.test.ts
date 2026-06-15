@@ -15,6 +15,7 @@ describe("executeWebhookEvent", () => {
     const submitReview = vi.fn(async () => {});
     const createPullRequestAdapter = vi.fn(async () => ({
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
+      react: vi.fn(async () => {}),
       submitReview,
     }));
     const createLlm = vi.fn(() => ({
