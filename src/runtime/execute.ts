@@ -6,7 +6,7 @@ import {
 } from "../adapters/github/api.js";
 import type { GitHubWebhookEvent } from "../adapters/github/webhook.js";
 import { reviewPullRequest } from "../core/pipeline.js";
-import { findingSchema, type Finding } from "../core/schema.js";
+import { findingSchema, type Finding, type ReviewFinding } from "../core/schema.js";
 import type { FlexibleSchema } from "ai";
 import type { LlmPort } from "../ports/llm.js";
 import type { PeepConfig, ReviewOptions } from "../ports/config.js";
@@ -60,7 +60,7 @@ export async function executeWebhookEvent({
   await handler({
     pr,
     agent: {
-      async review<TFinding extends Finding = Finding>(options?: ReviewOptions) {
+      async review<TFinding extends ReviewFinding = Finding>(options?: ReviewOptions) {
         const schema = options?.schema ?? findingSchema.array();
         const findings = await reviewPullRequest({
           vcs: pr,

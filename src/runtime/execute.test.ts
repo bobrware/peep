@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GitHubWebhookEvent } from "../adapters/github/webhook.js";
 import type { PeepConfig } from "../ports/config.js";
+import { findingSchema } from "../core/schema.js";
 import { executeWebhookEvent } from "./execute.js";
+import { z } from "zod";
 
 const event: GitHubWebhookEvent = {
   type: "pull_request.opened",
@@ -65,5 +67,54 @@ describe("executeWebhookEvent", () => {
     await executeWebhookEvent({ config, event, createPullRequestAdapter });
 
     expect(createPullRequestAdapter).not.toHaveBeenCalled();
+  });
+
+  it("allows configs to use finding schemas with custom fields", async () => {
+    const pepperFindingSchema = findingSchema.extend({
+      severity: z.enum(["bell", "ghost"]),
+    });
+    type PepperFinding = z.infer<typeof pepperFindingSchema>;
+    const submitReview = vi.fn(async () => {});
+    const createPullRequestAdapter = vi.fn(async () => ({
+      fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
+      react: vi.fn(async () => {}),
+      submitReview,
+    }));
+    const createLlm = vi.fn(() => ({
+      generateObject: vi.fn(async () => [
+        {
+          path: "file.ts",
+          line: 1,
+          side: "RIGHT" as const,
+          message: "Fix this",
+          severity: "ghost" as const,
+        },
+      ]),
+    }));
+    const config: PeepConfig = {
+      github: { appId: "app", privateKey: "key", webhookSecret: "secret" },
+      llm: { provider: "openrouter", apiKey: "api-key", model: "model" },
+      rules: [],
+      on: {
+        "pull_request.opened": async ({ agent, pr }) => {
+          const findings = await agent.review<PepperFinding>({
+            schema: z.array(pepperFindingSchema),
+          });
+
+          await pr.submitReview(
+            findings.map(({ severity, ...finding }) => ({
+              ...finding,
+              message: `${severity}: ${finding.message}`,
+            })),
+          );
+        },
+      },
+    };
+
+    await executeWebhookEvent({ config, event, createPullRequestAdapter, createLlm });
+
+    expect(submitReview).toHaveBeenCalledWith([
+      { path: "file.ts", line: 1, side: "RIGHT", message: "ghost: Fix this" },
+    ]);
   });
 });

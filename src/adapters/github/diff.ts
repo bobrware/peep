@@ -1,4 +1,4 @@
-import type { Finding } from "../../core/schema.js";
+import type { ReviewFinding } from "../../core/schema.js";
 
 export type GitHubReviewComment = {
   path: string;
@@ -10,7 +10,7 @@ export type GitHubReviewComment = {
 };
 
 export function mapFindingsToReviewComments(
-  findings: Finding[],
+  findings: ReviewFinding[],
   diff: string,
 ): GitHubReviewComment[] {
   const locations = parseDiffLocations(diff);
@@ -38,7 +38,7 @@ export function mapFindingsToReviewComments(
   });
 }
 
-function isMappableRange(finding: Finding, locations: Set<string>): boolean {
+function isMappableRange(finding: ReviewFinding, locations: Set<string>): boolean {
   if (finding.startLine === undefined || finding.startSide === undefined) {
     return false;
   }

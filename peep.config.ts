@@ -35,6 +35,7 @@ export default defineConfig({
     "Rank severity as a pepper: bell is a nit, jalapeno is minor, habanero is major, ghost is critical.",
     "Use bell only for clear but low-impact issues; do not report speculative bell-pepper nits.",
     "Classify each finding into exactly one category: correctness, security, performance, maintainability, or readability.",
+    "Review messages must be plain Markdown prose. Do not indent messages or wrap them in code fences.",
   ],
   on: {
     "pull_request.opened": async ({ pr, agent }) => {
@@ -45,9 +46,7 @@ export default defineConfig({
       });
       const reviewFindings = findings.map(({ severity, category, ...finding }) => ({
         ...finding,
-        message: `${formatCategory(category)} | ${formatPepperSeverity(severity)} ${severity.charAt(0).toUpperCase() + severity.slice(1)}
-
-        ${finding.message}`,
+        message: `${formatCategory(category)} | ${formatPepperSeverity(severity)} ${formatSeverityLabel(severity)}\n\n${normalizeReviewMessage(finding.message)}`,
       }));
 
       await pr.submitReview(reviewFindings, {
@@ -85,6 +84,18 @@ function formatPepperSeverity(severity: PepperFinding["severity"]): string {
     case "ghost":
       return "🌶️🌶️🌶️🌶️";
   }
+}
+
+function formatSeverityLabel(severity: PepperFinding["severity"]): string {
+  return severity.charAt(0).toUpperCase() + severity.slice(1);
+}
+
+function normalizeReviewMessage(message: string): string {
+  return message
+    .trim()
+    .replaceAll(/```/g, "")
+    .replaceAll(/\n[ \t]+/g, "\n")
+    .replaceAll(/[ \t]+/g, " ");
 }
 
 function requiredEnv(...names: string[]): string {

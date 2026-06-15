@@ -21,7 +21,7 @@ export type {
   ParseGitHubWebhookOptions,
   VerifyGitHubSignatureOptions,
 } from "./adapters/github/webhook.js";
-export type { Finding } from "./core/schema.js";
+export type { Finding, ReviewFinding } from "./core/schema.js";
 export type { BuildReviewPromptOptions } from "./core/prompt.js";
 export type { ReviewPullRequestOptions } from "./core/pipeline.js";
 export type { ReviewResult } from "./core/types.js";
