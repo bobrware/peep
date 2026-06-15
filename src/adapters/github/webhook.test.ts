@@ -33,6 +33,7 @@ describe("parseGitHubWebhook", () => {
           number: 42,
           title: "Add feature",
           body: "This adds a feature.",
+          draft: false,
           user: { login: "alice" },
         },
       },
@@ -47,6 +48,7 @@ describe("parseGitHubWebhook", () => {
         title: "Add feature",
         body: "This adds a feature.",
         author: "alice",
+        draft: false,
       },
     });
   });

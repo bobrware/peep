@@ -32,6 +32,7 @@ export type CreateGitHubPullRequestAdapterOptions = {
   title: string;
   body: string;
   author: string;
+  draft: boolean;
   client?: GitHubApiClient;
   logger?: PeepLogger;
 };
@@ -46,6 +47,7 @@ export async function createGitHubPullRequestAdapter({
   title,
   body,
   author,
+  draft,
   client,
   logger = defaultLogger,
 }: CreateGitHubPullRequestAdapterOptions): Promise<GitHubPullRequestAdapter> {
@@ -59,6 +61,7 @@ export async function createGitHubPullRequestAdapter({
     title,
     body,
     author,
+    draft,
 
     async fetchPullRequestDiff() {
       const response = await apiClient.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
@@ -71,6 +74,17 @@ export async function createGitHubPullRequestAdapter({
       });
 
       return getStringData(response);
+    },
+
+    async comment(body) {
+      logger.info({ owner, repo, pullNumber }, "creating pull request comment");
+
+      await apiClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+        owner,
+        repo,
+        issue_number: pullNumber,
+        body,
+      });
     },
 
     async react(content) {

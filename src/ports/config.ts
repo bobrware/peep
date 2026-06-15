@@ -13,6 +13,8 @@ export type PullRequestContext = {
   title: string;
   body: string;
   author: string;
+  draft: boolean;
+  comment: (body: string) => Promise<void>;
   react: (content: ReactionContent) => Promise<void>;
   submitReview: <TFinding extends ReviewFinding>(
     findings: TFinding[],

@@ -41,6 +41,12 @@ export default defineConfig({
     "pull_request.opened": async ({ pr, agent }) => {
       await pr.react("eyes");
 
+      if (pr.draft) {
+        return;
+      }
+
+      await pr.comment("👀 Peep is reviewing this PR.");
+
       const findings = await agent.review<PepperFinding>({
         schema: z.array(pepperFindingSchema),
       });

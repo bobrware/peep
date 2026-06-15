@@ -9,7 +9,7 @@ const event: GitHubWebhookEvent = {
   type: "pull_request.opened",
   installationId: 123,
   repository: { owner: "bobrware", name: "peep" },
-  pullRequest: { number: 42, title: "Add feature", body: "Body", author: "alice" },
+  pullRequest: { number: 42, title: "Add feature", body: "Body", author: "alice", draft: false },
 };
 
 describe("executeWebhookEvent", () => {
@@ -22,6 +22,8 @@ describe("executeWebhookEvent", () => {
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
+      comment: vi.fn(async () => {}),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
       submitReview,
@@ -54,6 +56,7 @@ describe("executeWebhookEvent", () => {
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
       logger: expect.anything(),
     });
     expect(handler).toHaveBeenCalledWith(
@@ -65,6 +68,7 @@ describe("executeWebhookEvent", () => {
           title: "Add feature",
           body: "Body",
           author: "alice",
+          draft: false,
         }),
       }),
     );
@@ -103,6 +107,8 @@ describe("executeWebhookEvent", () => {
       title: "Add feature",
       body: "Body",
       author: "alice",
+      draft: false,
+      comment: vi.fn(async () => {}),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
       submitReview,

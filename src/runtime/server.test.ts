@@ -34,7 +34,13 @@ describe("createWebhookServer", () => {
       action: "opened",
       installation: { id: 123 },
       repository: { name: "peep", owner: { login: "bobrware" } },
-      pull_request: { number: 42, title: "Add feature", body: "Body", user: { login: "alice" } },
+      pull_request: {
+        number: 42,
+        title: "Add feature",
+        body: "Body",
+        draft: false,
+        user: { login: "alice" },
+      },
     });
 
     const response = await fetch(`${url}/webhooks/github`, {
@@ -53,7 +59,13 @@ describe("createWebhookServer", () => {
         type: "pull_request.opened",
         installationId: 123,
         repository: { owner: "bobrware", name: "peep" },
-        pullRequest: { number: 42, title: "Add feature", body: "Body", author: "alice" },
+        pullRequest: {
+          number: 42,
+          title: "Add feature",
+          body: "Body",
+          author: "alice",
+          draft: false,
+        },
       },
       logger: expect.anything(),
     });
