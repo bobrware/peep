@@ -1,4 +1,5 @@
 import { defineConfig, findingSchema, z } from "./src/index.js";
+import type { PullRequestEventContext } from "./src/index.js";
 
 const pepperSeveritySchema = z.enum(["bell", "jalapeno", "habanero", "ghost"]);
 const categorySchema = z.enum([
@@ -45,24 +46,29 @@ export default defineConfig({
         return;
       }
 
-      await pr.comment("👀 Peep is reviewing this PR.");
-
-      const findings = await agent.review<PepperFinding>({
-        schema: z.array(pepperFindingSchema),
-      });
-      const reviewFindings = findings.map(({ severity, category, ...finding }) => ({
-        ...finding,
-        message: `${formatCategory(category)} | ${formatPepperSeverity(severity)} ${formatSeverityLabel(severity)}\n\n${normalizeReviewMessage(finding.message)}`,
-      }));
-
-      await pr.submitReview(reviewFindings, {
-        event: reviewFindings.some((finding) => finding.message.startsWith("🌶️🌶️🌶️🌶️"))
-          ? "REQUEST_CHANGES"
-          : "COMMENT",
-      });
+      await reviewReadyPullRequest({ pr, agent });
     },
+    "pull_request.ready_for_review": reviewReadyPullRequest,
   },
 });
+
+async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): Promise<void> {
+  await pr.comment("👀 Peep is reviewing this PR.");
+
+  const findings = await agent.review<PepperFinding>({
+    schema: z.array(pepperFindingSchema),
+  });
+  const reviewFindings = findings.map(({ severity, category, ...finding }) => ({
+    ...finding,
+    message: `${formatCategory(category)} | ${formatPepperSeverity(severity)} ${formatSeverityLabel(severity)}\n\n${normalizeReviewMessage(finding.message)}`,
+  }));
+
+  await pr.submitReview(reviewFindings, {
+    event: reviewFindings.some((finding) => finding.message.startsWith("🌶️🌶️🌶️🌶️"))
+      ? "REQUEST_CHANGES"
+      : "COMMENT",
+  });
+}
 
 function formatCategory(category: PepperFinding["category"]): string {
   switch (category) {

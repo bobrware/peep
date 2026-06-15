@@ -1,10 +1,13 @@
 import type { Finding, ReviewFinding } from "../core/schema.js";
 import type { FlexibleSchema } from "ai";
 
-export type PullRequestOpenedContext = {
+export type PullRequestEventContext = {
   pr: PullRequestContext;
   agent: ReviewAgent;
 };
+
+export type PullRequestOpenedContext = PullRequestEventContext;
+export type PullRequestReadyForReviewContext = PullRequestEventContext;
 
 export type PullRequestContext = {
   owner: string;
@@ -61,5 +64,8 @@ export type PeepConfig = {
   rules: string[];
   on: {
     "pull_request.opened"?: (context: PullRequestOpenedContext) => Promise<void> | void;
+    "pull_request.ready_for_review"?: (
+      context: PullRequestReadyForReviewContext,
+    ) => Promise<void> | void;
   };
 };

@@ -6,8 +6,8 @@ export type VerifyGitHubSignatureOptions = {
   signature: string | undefined;
 };
 
-export type GitHubPullRequestOpenedEvent = {
-  type: "pull_request.opened";
+export type GitHubPullRequestEvent = {
+  type: "pull_request.opened" | "pull_request.ready_for_review";
   installationId: number;
   repository: {
     owner: string;
@@ -22,7 +22,17 @@ export type GitHubPullRequestOpenedEvent = {
   };
 };
 
-export type GitHubWebhookEvent = GitHubPullRequestOpenedEvent;
+export type GitHubPullRequestOpenedEvent = GitHubPullRequestEvent & {
+  type: "pull_request.opened";
+};
+
+export type GitHubPullRequestReadyForReviewEvent = GitHubPullRequestEvent & {
+  type: "pull_request.ready_for_review";
+};
+
+export type GitHubWebhookEvent =
+  | GitHubPullRequestOpenedEvent
+  | GitHubPullRequestReadyForReviewEvent;
 
 export type ParseGitHubWebhookOptions = {
   event: string;
@@ -69,7 +79,9 @@ export function parseGitHubWebhook({
 
   const pullRequestPayload = payload as PullRequestPayload;
 
-  if (pullRequestPayload.action !== "opened") {
+  const type = mapPullRequestAction(pullRequestPayload.action);
+
+  if (type === undefined) {
     return undefined;
   }
 
@@ -91,15 +103,27 @@ export function parseGitHubWebhook({
     draft === undefined ||
     author === undefined
   ) {
-    throw new Error("Invalid pull_request.opened webhook payload.");
+    throw new Error(`Invalid ${type} webhook payload.`);
   }
 
   return {
-    type: "pull_request.opened",
+    type,
     installationId,
     repository: { owner, name },
     pullRequest: { number, title, body: body ?? "", author, draft },
   };
+}
+
+function mapPullRequestAction(action: string | undefined): GitHubWebhookEvent["type"] | undefined {
+  if (action === "opened") {
+    return "pull_request.opened";
+  }
+
+  if (action === "ready_for_review") {
+    return "pull_request.ready_for_review";
+  }
+
+  return undefined;
 }
 
 function timingSafeEqualString(left: string, right: string): boolean {
