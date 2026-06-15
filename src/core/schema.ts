@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export type ReviewFinding = {
+  path: string;
+  startLine?: number;
+  startSide?: "LEFT" | "RIGHT";
+  line: number;
+  side: "LEFT" | "RIGHT";
+  message: string;
+};
+
 export const findingSchema = z.object({
   path: z.string(),
   startLine: z.number().int().positive().optional(),

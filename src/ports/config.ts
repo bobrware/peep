@@ -1,4 +1,4 @@
-import type { Finding } from "../core/schema.js";
+import type { Finding, ReviewFinding } from "../core/schema.js";
 import type { FlexibleSchema } from "ai";
 
 export type PullRequestOpenedContext = {
@@ -8,7 +8,7 @@ export type PullRequestOpenedContext = {
 
 export type PullRequestContext = {
   react: (content: ReactionContent) => Promise<void>;
-  submitReview: <TFinding extends Finding>(
+  submitReview: <TFinding extends ReviewFinding>(
     findings: TFinding[],
     options?: SubmitReviewOptions,
   ) => Promise<void>;
@@ -25,7 +25,9 @@ export type ReactionContent =
   | "eyes";
 
 export type ReviewAgent = {
-  review: <TFinding extends Finding = Finding>(options?: ReviewOptions) => Promise<TFinding[]>;
+  review: <TFinding extends ReviewFinding = Finding>(
+    options?: ReviewOptions,
+  ) => Promise<TFinding[]>;
 };
 
 export type ReviewOptions = {

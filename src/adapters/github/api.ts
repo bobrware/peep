@@ -1,5 +1,5 @@
 import { App } from "octokit";
-import type { Finding } from "../../core/schema.js";
+import type { ReviewFinding } from "../../core/schema.js";
 import type { ReactionContent, SubmitReviewOptions } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
 import { logger as defaultLogger, type PeepLogger } from "../../runtime/logger.js";
@@ -7,7 +7,7 @@ import { mapFindingsToReviewComments } from "./diff.js";
 
 export type GitHubPullRequestAdapter = VcsPort & {
   react: (content: ReactionContent) => Promise<void>;
-  submitReview: <TFinding extends Finding>(
+  submitReview: <TFinding extends ReviewFinding>(
     findings: TFinding[],
     options?: SubmitReviewOptions,
   ) => Promise<void>;
@@ -105,7 +105,7 @@ async function createInstallationClient({
   return app.getInstallationOctokit(installationId);
 }
 
-function buildReviewBody(findings: Finding[], options: SubmitReviewOptions): string {
+function buildReviewBody(findings: ReviewFinding[], options: SubmitReviewOptions): string {
   if (typeof options.summary === "string") {
     return options.summary;
   }

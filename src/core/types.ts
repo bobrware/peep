@@ -1,3 +1,3 @@
-import type { Finding } from "./schema.js";
+import type { ReviewFinding } from "./schema.js";
 
-export type ReviewResult<TFinding = Finding> = TFinding[];
+export type ReviewResult<TFinding extends ReviewFinding = ReviewFinding> = TFinding[];
