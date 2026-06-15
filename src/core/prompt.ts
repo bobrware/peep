@@ -15,6 +15,12 @@ Rules:
 ${formattedRules}
 
 Return only findings that identify concrete, actionable issues in the diff.
+Each finding must include:
+- path: the exact file path from the diff
+- line: the exact changed or context line number in the diff
+- side: "RIGHT" for added/current lines or "LEFT" for deleted/base lines
+- message: a concise review comment
+If there are no concrete issues, return an empty array.
 
 Diff:
 ${diff}`;
