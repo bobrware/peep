@@ -19,6 +19,7 @@ Each finding must include:
 - path: the exact file path from the diff
 - line: the exact changed or context line number in the diff
 - side: "RIGHT" for added/current lines or "LEFT" for deleted/base lines
+- startLine and startSide only when the issue spans multiple contiguous diff lines on the same side
 - message: a concise review comment
 If there are no concrete issues, return an empty array.
 

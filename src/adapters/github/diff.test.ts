@@ -51,4 +51,49 @@ describe("mapFindingsToReviewComments", () => {
       ),
     ).toEqual([{ path: "src/two.ts", line: 20, side: "RIGHT", body: "Second file" }]);
   });
+
+  it("maps valid multi-line findings to GitHub range comments", () => {
+    expect(
+      mapFindingsToReviewComments(
+        [
+          {
+            path: "src/one.ts",
+            startLine: 11,
+            startSide: "RIGHT",
+            line: 12,
+            side: "RIGHT",
+            message: "Range",
+          },
+        ],
+        diff,
+      ),
+    ).toEqual([
+      {
+        path: "src/one.ts",
+        start_line: 11,
+        start_side: "RIGHT",
+        line: 12,
+        side: "RIGHT",
+        body: "Range",
+      },
+    ]);
+  });
+
+  it("falls back to a single-line comment when the range is not mappable", () => {
+    expect(
+      mapFindingsToReviewComments(
+        [
+          {
+            path: "src/one.ts",
+            startLine: 9,
+            startSide: "RIGHT",
+            line: 12,
+            side: "RIGHT",
+            message: "Range",
+          },
+        ],
+        diff,
+      ),
+    ).toEqual([{ path: "src/one.ts", line: 12, side: "RIGHT", body: "Range" }]);
+  });
 });
