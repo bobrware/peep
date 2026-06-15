@@ -55,6 +55,7 @@ describe("createWebhookServer", () => {
         repository: { owner: "bobrware", name: "peep" },
         pullRequest: { number: 42 },
       },
+      logger: expect.anything(),
     });
   });
 

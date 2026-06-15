@@ -10,6 +10,7 @@ import { findingSchema, type Finding } from "../core/schema.js";
 import type { FlexibleSchema } from "ai";
 import type { LlmPort } from "../ports/llm.js";
 import type { PeepConfig } from "../ports/config.js";
+import { logger as defaultLogger, type PeepLogger } from "./logger.js";
 
 export type ExecuteWebhookEventOptions = {
   config: PeepConfig;
@@ -18,6 +19,7 @@ export type ExecuteWebhookEventOptions = {
     options: CreateGitHubPullRequestAdapterOptions,
   ) => Promise<GitHubPullRequestAdapter>;
   createLlm?: (config: PeepConfig["llm"]) => LlmPort<Finding[], FlexibleSchema>;
+  logger?: PeepLogger;
 };
 
 export async function executeWebhookEvent({
@@ -25,12 +27,24 @@ export async function executeWebhookEvent({
   event,
   createPullRequestAdapter = createGitHubPullRequestAdapter,
   createLlm = createDefaultLlm,
+  logger = defaultLogger,
 }: ExecuteWebhookEventOptions): Promise<void> {
   const handler = config.on[event.type];
 
   if (handler === undefined) {
+    logger.info({ event: event.type }, "no handler configured for event");
     return;
   }
+
+  logger.info(
+    {
+      event: event.type,
+      owner: event.repository.owner,
+      repo: event.repository.name,
+      pullNumber: event.pullRequest.number,
+    },
+    "executing webhook handler",
+  );
 
   const pr = await createPullRequestAdapter({
     appId: config.github.appId,
@@ -39,6 +53,7 @@ export async function executeWebhookEvent({
     owner: event.repository.owner,
     repo: event.repository.name,
     pullNumber: event.pullRequest.number,
+    logger,
   });
   const llm = createLlm(config.llm);
 
@@ -55,6 +70,8 @@ export async function executeWebhookEvent({
       },
     },
   });
+
+  logger.info({ event: event.type }, "webhook handler completed");
 }
 
 function createDefaultLlm(config: PeepConfig["llm"]): LlmPort<Finding[], FlexibleSchema> {

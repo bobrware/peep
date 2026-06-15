@@ -3,10 +3,12 @@ import { parseGitHubWebhook, verifyGitHubSignature } from "../adapters/github/we
 import { loadConfig } from "../config/loader.js";
 import type { PeepConfig } from "../ports/config.js";
 import { executeWebhookEvent } from "./execute.js";
+import { logger as defaultLogger, type PeepLogger } from "./logger.js";
 
 export type CreateWebhookServerOptions = {
   config: PeepConfig;
   execute?: typeof executeWebhookEvent;
+  logger?: PeepLogger;
 };
 
 export type StartWebhookServerOptions = {
@@ -17,12 +19,20 @@ export type StartWebhookServerOptions = {
 export function createWebhookServer({
   config,
   execute = executeWebhookEvent,
+  logger = defaultLogger,
 }: CreateWebhookServerOptions): Server {
   return createServer(async (request, response) => {
+    const deliveryId = getHeader(request, "x-github-delivery");
+    const eventName = getHeader(request, "x-github-event");
+    const requestLogger = logger.child({ deliveryId, githubEvent: eventName });
+
     if (request.method !== "POST" || request.url !== "/webhooks/github") {
+      requestLogger.warn({ method: request.method, url: request.url }, "request not found");
       writeResponse(response, 404, "Not found");
       return;
     }
+
+    requestLogger.info("received GitHub webhook");
 
     const body = await readRequestBody(request);
     const signature = getHeader(request, "x-hub-signature-256");
@@ -34,6 +44,7 @@ export function createWebhookServer({
         signature,
       })
     ) {
+      requestLogger.warn("invalid GitHub webhook signature");
       writeResponse(response, 401, "Invalid signature");
       return;
     }
@@ -42,21 +53,28 @@ export function createWebhookServer({
 
     try {
       const payload = JSON.parse(body.toString("utf8")) as unknown;
-      const eventName = getHeader(request, "x-github-event");
       event = parseGitHubWebhook({ event: eventName ?? "", payload });
     } catch (error) {
+      requestLogger.warn({ error }, "invalid GitHub webhook payload");
       writeResponse(response, 400, error instanceof Error ? error.message : "Bad request");
       return;
     }
 
     try {
       if (event !== undefined) {
-        await execute({ config, event });
+        await execute({ config, event, logger: requestLogger });
+      } else {
+        requestLogger.info("ignored unsupported GitHub webhook");
       }
 
       writeResponse(response, 202, "Accepted");
     } catch (error) {
-      writeResponse(response, 500, error instanceof Error ? error.message : "Internal server error");
+      requestLogger.error({ error }, "GitHub webhook execution failed");
+      writeResponse(
+        response,
+        500,
+        error instanceof Error ? error.message : "Internal server error",
+      );
     }
   });
 }

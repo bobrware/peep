@@ -1,5 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateObject, type FlexibleSchema } from "ai";
+import { generateText, Output, type FlexibleSchema } from "ai";
 import type { LlmPort } from "../../ports/llm.js";
 
 export type AiSdkProviderConfig = {
@@ -21,13 +21,21 @@ export function createLlmPort<TObject = unknown, TSchema extends FlexibleSchema 
 
   return {
     async generateObject({ schema, prompt }) {
-      const result = await generateObject({
+      const result = await generateText({
         model: openrouter(model),
-        schema,
-        prompt,
+        output: Output.json(),
+        prompt: `${prompt}\n\nReturn valid JSON only. Do not include markdown fences, prose, or explanations.`,
       });
 
-      return result.object as TObject;
+      return parseSchemaObject(schema, result.output) as TObject;
     },
   };
+}
+
+function parseSchemaObject(schema: FlexibleSchema, json: unknown): unknown {
+  if ("parse" in schema && typeof schema.parse === "function") {
+    return schema.parse(json);
+  }
+
+  return json;
 }
