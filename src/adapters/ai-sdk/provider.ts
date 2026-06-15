@@ -34,8 +34,38 @@ export function createLlmPort<TObject = unknown, TSchema extends FlexibleSchema 
 
 function parseSchemaObject(schema: FlexibleSchema, json: unknown): unknown {
   if ("parse" in schema && typeof schema.parse === "function") {
-    return schema.parse(json);
+    try {
+      return schema.parse(json);
+    } catch (error) {
+      const unwrappedJson = unwrapArrayContainer(json);
+
+      if (unwrappedJson !== json) {
+        return schema.parse(unwrappedJson);
+      }
+
+      throw error;
+    }
   }
 
   return json;
+}
+
+function unwrapArrayContainer(json: unknown): unknown {
+  if (!isRecord(json)) {
+    return json;
+  }
+
+  for (const key of ["findings", "reviewFindings", "issues", "comments"]) {
+    const value = json[key];
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return json;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -1,17 +1,22 @@
 import { App } from "octokit";
 import type { ReviewFinding } from "../../core/schema.js";
-import type { PullRequestContext, ReactionContent, SubmitReviewOptions } from "../../ports/config.js";
+import type {
+  PullRequestContext,
+  ReactionContent,
+  SubmitReviewOptions,
+} from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
 import { logger as defaultLogger, type PeepLogger } from "../../runtime/logger.js";
 import { mapFindingsToReviewComments } from "./diff.js";
 
-export type GitHubPullRequestAdapter = VcsPort & PullRequestContext & {
-  react: (content: ReactionContent) => Promise<void>;
-  submitReview: <TFinding extends ReviewFinding>(
-    findings: TFinding[],
-    options?: SubmitReviewOptions,
-  ) => Promise<void>;
-};
+export type GitHubPullRequestAdapter = VcsPort &
+  PullRequestContext & {
+    react: (content: ReactionContent) => Promise<void>;
+    submitReview: <TFinding extends ReviewFinding>(
+      findings: TFinding[],
+      options?: SubmitReviewOptions,
+    ) => Promise<void>;
+  };
 
 export type GitHubApiClient = {
   request: (route: string, parameters: Record<string, unknown>) => Promise<unknown>;
