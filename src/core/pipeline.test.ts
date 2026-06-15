@@ -29,4 +29,32 @@ describe("reviewPullRequest", () => {
       prompt: expect.stringContaining("diff --git a/src/example.ts b/src/example.ts"),
     });
   });
+
+  it("annotates diff line coordinates before prompting", async () => {
+    const generateObject = vi.fn(async () => []);
+    const vcs: VcsPort = {
+      fetchPullRequestDiff: vi.fn(
+        async () => `diff --git a/src/example.ts b/src/example.ts
+@@ -1,1 +1,1 @@
+-const oldValue = true;
++const newValue = true;`,
+      ),
+    };
+
+    await reviewPullRequest({
+      vcs,
+      llm: { generateObject },
+      rules: [],
+      schema: {},
+    });
+
+    expect(generateObject).toHaveBeenCalledWith({
+      schema: {},
+      prompt: expect.stringContaining("LEFT:1 -const oldValue = true;"),
+    });
+    expect(generateObject).toHaveBeenCalledWith({
+      schema: {},
+      prompt: expect.stringContaining("RIGHT:1 +const newValue = true;"),
+    });
+  });
 });
