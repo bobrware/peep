@@ -28,7 +28,9 @@ describe("createGitHubPullRequestAdapter", () => {
 
   it("submits a body-only pull request review", async () => {
     const client: GitHubApiClient = {
-      request: vi.fn(async () => ({ data: {} })),
+      request: vi.fn(async (route: string) => ({
+        data: route.startsWith("GET ") ? "diff --git a/other.ts b/other.ts" : {},
+      })),
     };
     const adapter = await createGitHubPullRequestAdapter({
       appId: "app",
@@ -53,6 +55,59 @@ describe("createGitHubPullRequestAdapter", () => {
         pull_number: 42,
         event: "REQUEST_CHANGES",
         body: "Peep found 1 issue.",
+        comments: [],
+      },
+    );
+  });
+
+  it("maps findings on diff lines to inline review comments", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async (route: string) => ({
+        data: route.startsWith("GET ")
+          ? `diff --git a/src/example.ts b/src/example.ts
+index 1111111..2222222 100644
+--- a/src/example.ts
++++ b/src/example.ts
+@@ -1,3 +1,4 @@
+ const kept = true;
+-const removed = true;
++const added = true;
++const alsoAdded = true;
+ const after = true;`
+          : {},
+      })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      client,
+    });
+
+    await adapter.submitReview([
+      { path: "src/example.ts", line: 2, side: "RIGHT", message: "Fix added" },
+      { path: "src/example.ts", line: 99, side: "RIGHT", message: "Not in diff" },
+    ]);
+
+    expect(client.request).toHaveBeenLastCalledWith(
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+      {
+        owner: "bobrware",
+        repo: "peep",
+        pull_number: 42,
+        event: "COMMENT",
+        body: "Peep found 2 issues.",
+        comments: [
+          {
+            path: "src/example.ts",
+            line: 2,
+            side: "RIGHT",
+            body: "Fix added",
+          },
+        ],
       },
     );
   });
