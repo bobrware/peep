@@ -7,7 +7,10 @@ import { mapFindingsToReviewComments } from "./diff.js";
 
 export type GitHubPullRequestAdapter = VcsPort & {
   react: (content: ReactionContent) => Promise<void>;
-  submitReview: (findings: Finding[], options?: SubmitReviewOptions) => Promise<void>;
+  submitReview: <TFinding extends Finding>(
+    findings: TFinding[],
+    options?: SubmitReviewOptions,
+  ) => Promise<void>;
 };
 
 export type GitHubApiClient = {

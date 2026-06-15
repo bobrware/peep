@@ -8,7 +8,10 @@ export type PullRequestOpenedContext = {
 
 export type PullRequestContext = {
   react: (content: ReactionContent) => Promise<void>;
-  submitReview: (findings: Finding[], options?: SubmitReviewOptions) => Promise<void>;
+  submitReview: <TFinding extends Finding>(
+    findings: TFinding[],
+    options?: SubmitReviewOptions,
+  ) => Promise<void>;
 };
 
 export type ReactionContent =
@@ -22,7 +25,7 @@ export type ReactionContent =
   | "eyes";
 
 export type ReviewAgent = {
-  review: (options?: ReviewOptions) => Promise<Finding[]>;
+  review: <TFinding extends Finding = Finding>(options?: ReviewOptions) => Promise<TFinding[]>;
 };
 
 export type ReviewOptions = {
