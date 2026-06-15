@@ -20,6 +20,8 @@ export default defineConfig({
   ],
   on: {
     "pull_request.opened": async ({ pr, agent }) => {
+      await pr.react("eyes");
+
       const findings = await agent.review();
 
       await pr.submitReview(findings, {

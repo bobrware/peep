@@ -1,11 +1,12 @@
 import { App } from "octokit";
 import type { Finding } from "../../core/schema.js";
-import type { SubmitReviewOptions } from "../../ports/config.js";
+import type { ReactionContent, SubmitReviewOptions } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
 import { logger as defaultLogger, type PeepLogger } from "../../runtime/logger.js";
 import { mapFindingsToReviewComments } from "./diff.js";
 
 export type GitHubPullRequestAdapter = VcsPort & {
+  react: (content: ReactionContent) => Promise<void>;
   submitReview: (findings: Finding[], options?: SubmitReviewOptions) => Promise<void>;
 };
 
@@ -49,6 +50,20 @@ export async function createGitHubPullRequestAdapter({
       });
 
       return getStringData(response);
+    },
+
+    async react(content) {
+      logger.info({ owner, repo, pullNumber, content }, "reacting to pull request");
+
+      await apiClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
+        owner,
+        repo,
+        issue_number: pullNumber,
+        content,
+        headers: {
+          accept: "application/vnd.github+json",
+        },
+      });
     },
 
     async submitReview(findings, options = {}) {

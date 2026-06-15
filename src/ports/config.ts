@@ -7,8 +7,19 @@ export type PullRequestOpenedContext = {
 };
 
 export type PullRequestContext = {
+  react: (content: ReactionContent) => Promise<void>;
   submitReview: (findings: Finding[], options?: SubmitReviewOptions) => Promise<void>;
 };
+
+export type ReactionContent =
+  | "+1"
+  | "-1"
+  | "laugh"
+  | "confused"
+  | "heart"
+  | "hooray"
+  | "rocket"
+  | "eyes";
 
 export type ReviewAgent = {
   review: (options?: ReviewOptions) => Promise<Finding[]>;
