@@ -2,6 +2,7 @@ import { App } from "octokit";
 import type { Finding } from "../../core/schema.js";
 import type { SubmitReviewOptions } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
+import { logger as defaultLogger, type PeepLogger } from "../../runtime/logger.js";
 import { mapFindingsToReviewComments } from "./diff.js";
 
 export type GitHubPullRequestAdapter = VcsPort & {
@@ -20,6 +21,7 @@ export type CreateGitHubPullRequestAdapterOptions = {
   repo: string;
   pullNumber: number;
   client?: GitHubApiClient;
+  logger?: PeepLogger;
 };
 
 export async function createGitHubPullRequestAdapter({
@@ -30,6 +32,7 @@ export async function createGitHubPullRequestAdapter({
   repo,
   pullNumber,
   client,
+  logger = defaultLogger,
 }: CreateGitHubPullRequestAdapterOptions): Promise<GitHubPullRequestAdapter> {
   const apiClient =
     client ?? (await createInstallationClient({ appId, privateKey, installationId }));
@@ -51,6 +54,11 @@ export async function createGitHubPullRequestAdapter({
     async submitReview(findings, options = {}) {
       const diff = await adapter.fetchPullRequestDiff();
       const comments = mapFindingsToReviewComments(findings, diff);
+
+      logger.info(
+        { owner, repo, pullNumber, findings: findings.length, inlineComments: comments.length },
+        "submitting pull request review",
+      );
 
       await apiClient.request("POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
         owner,

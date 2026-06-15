@@ -1,9 +1,6 @@
 import { defineConfig } from "./src/index.js";
 
-const privateKey = requiredEnv("GITHUB_PRIVATE_KEY", "GITHIB_PRIVATE_KEY").replaceAll(
-  "\\n",
-  "\n",
-);
+const privateKey = requiredEnv("GITHUB_PRIVATE_KEY", "GITHIB_PRIVATE_KEY").replaceAll("\\n", "\n");
 
 export default defineConfig({
   github: {

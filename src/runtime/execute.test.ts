@@ -42,6 +42,7 @@ describe("executeWebhookEvent", () => {
       owner: "bobrware",
       repo: "peep",
       pullNumber: 42,
+      logger: expect.anything(),
     });
     expect(createLlm).toHaveBeenCalledWith(config.llm);
     expect(handler).toHaveBeenCalledOnce();

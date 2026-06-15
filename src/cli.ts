@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
+import { logger } from "./runtime/logger.js";
 import { startWebhookServer } from "./runtime/server.js";
 
 export type CliOptions = {
@@ -31,7 +32,7 @@ export async function runCli(args = process.argv.slice(2)): Promise<void> {
   const address = server.address();
   const port = typeof address === "object" && address !== null ? address.port : options.port;
 
-  console.log(`Peep listening on http://localhost:${port}`);
+  logger.info({ port }, "Peep listening");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
