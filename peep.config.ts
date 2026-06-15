@@ -60,7 +60,7 @@ async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): P
   });
   const reviewFindings = findings.map(({ severity, category, ...finding }) => ({
     ...finding,
-    message: `${formatCategory(category)} | ${formatPepperSeverity(severity)} ${formatSeverityLabel(severity)}\n\n${normalizeReviewMessage(finding.message)}`,
+    message: `${formatCategory(category)} | ${formatPepperSeverity(severity)}\n\n${normalizeReviewMessage(finding.message)}`,
   }));
 
   await pr.submitReview(reviewFindings, {
@@ -88,18 +88,14 @@ function formatCategory(category: PepperFinding["category"]): string {
 function formatPepperSeverity(severity: PepperFinding["severity"]): string {
   switch (severity) {
     case "bell":
-      return "🫑";
+      return "🫑 Bell";
     case "jalapeno":
-      return "🌶️";
+      return "🌶️ Jalapeno";
     case "habanero":
-      return "🌶️🌶️";
+      return "🌶️🌶️ Habanero";
     case "ghost":
-      return "🌶️🌶️🌶️🌶️";
+      return "🌶️🌶️🌶️🌶️ Ghost";
   }
-}
-
-function formatSeverityLabel(severity: PepperFinding["severity"]): string {
-  return severity.charAt(0).toUpperCase() + severity.slice(1);
 }
 
 function normalizeReviewMessage(message: string): string {
