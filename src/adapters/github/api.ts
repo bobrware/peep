@@ -2,6 +2,7 @@ import { App } from "octokit";
 import type { Finding } from "../../core/schema.js";
 import type { SubmitReviewOptions } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
+import { mapFindingsToReviewComments } from "./diff.js";
 
 export type GitHubPullRequestAdapter = VcsPort & {
   submitReview: (findings: Finding[], options?: SubmitReviewOptions) => Promise<void>;
@@ -33,7 +34,7 @@ export async function createGitHubPullRequestAdapter({
   const apiClient =
     client ?? (await createInstallationClient({ appId, privateKey, installationId }));
 
-  return {
+  const adapter: GitHubPullRequestAdapter = {
     async fetchPullRequestDiff() {
       const response = await apiClient.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
         owner,
@@ -48,15 +49,21 @@ export async function createGitHubPullRequestAdapter({
     },
 
     async submitReview(findings, options = {}) {
+      const diff = await adapter.fetchPullRequestDiff();
+      const comments = mapFindingsToReviewComments(findings, diff);
+
       await apiClient.request("POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
         owner,
         repo,
         pull_number: pullNumber,
         event: options.event ?? "COMMENT",
         body: buildReviewBody(findings, options),
+        comments,
       });
     },
   };
+
+  return adapter;
 }
 
 async function createInstallationClient({

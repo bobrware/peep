@@ -2,8 +2,13 @@
   "name": "peep",
   "version": "0.0.0",
   "private": true,
+  "bin": {
+    "peep": "dist/cli.js"
+  },
   "type": "module",
   "scripts": {
+    "build": "tsc",
+    "dev": "node --env-file-if-exists=.env.local --import tsx ./src/cli.ts --config peep.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",

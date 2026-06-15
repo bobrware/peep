@@ -8,6 +8,7 @@ export { buildReviewPrompt } from "./core/prompt.js";
 export { reviewPullRequest } from "./core/pipeline.js";
 export { findingSchema } from "./core/schema.js";
 export { executeWebhookEvent } from "./runtime/execute.js";
+export { createWebhookServer, startWebhookServer } from "./runtime/server.js";
 export type { AiSdkProviderConfig } from "./adapters/ai-sdk/provider.js";
 export type {
   CreateGitHubPullRequestAdapterOptions,
@@ -28,3 +29,4 @@ export type { GenerateObjectOptions, LlmPort } from "./ports/llm.js";
 export type { PeepConfig } from "./ports/config.js";
 export type { VcsPort } from "./ports/vcs.js";
 export type { ExecuteWebhookEventOptions } from "./runtime/execute.js";
+export type { CreateWebhookServerOptions, StartWebhookServerOptions } from "./runtime/server.js";
