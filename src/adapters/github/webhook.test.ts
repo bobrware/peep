@@ -29,7 +29,12 @@ describe("parseGitHubWebhook", () => {
         action: "opened",
         installation: { id: 123 },
         repository: { name: "peep", owner: { login: "bobrware" } },
-        pull_request: { number: 42 },
+        pull_request: {
+          number: 42,
+          title: "Add feature",
+          body: "This adds a feature.",
+          user: { login: "alice" },
+        },
       },
     });
 
@@ -37,7 +42,12 @@ describe("parseGitHubWebhook", () => {
       type: "pull_request.opened",
       installationId: 123,
       repository: { owner: "bobrware", name: "peep" },
-      pullRequest: { number: 42 },
+      pullRequest: {
+        number: 42,
+        title: "Add feature",
+        body: "This adds a feature.",
+        author: "alice",
+      },
     });
   });
 
