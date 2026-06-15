@@ -14,9 +14,20 @@ describe("createGitHubPullRequestAdapter", () => {
       owner: "bobrware",
       repo: "peep",
       pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
       client,
     });
 
+    expect(adapter).toMatchObject({
+      owner: "bobrware",
+      repo: "peep",
+      number: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+    });
     await expect(adapter.fetchPullRequestDiff()).resolves.toBe("diff --git a/file.ts b/file.ts");
     expect(client.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
       owner: "bobrware",
@@ -39,6 +50,9 @@ describe("createGitHubPullRequestAdapter", () => {
       owner: "bobrware",
       repo: "peep",
       pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
       client,
     });
 
@@ -84,6 +98,9 @@ index 1111111..2222222 100644
       owner: "bobrware",
       repo: "peep",
       pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
       client,
     });
 
@@ -123,6 +140,9 @@ index 1111111..2222222 100644
       owner: "bobrware",
       repo: "peep",
       pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
       client,
     });
 

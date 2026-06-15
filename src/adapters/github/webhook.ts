@@ -15,6 +15,9 @@ export type GitHubPullRequestOpenedEvent = {
   };
   pullRequest: {
     number: number;
+    title: string;
+    body: string;
+    author: string;
   };
 };
 
@@ -32,7 +35,12 @@ type PullRequestPayload = {
     name?: string;
     owner?: { login?: string };
   };
-  pull_request?: { number?: number };
+  pull_request?: {
+    number?: number;
+    title?: string;
+    body?: string | null;
+    user?: { login?: string };
+  };
 };
 
 export function verifyGitHubSignature({
@@ -67,12 +75,17 @@ export function parseGitHubWebhook({
   const owner = pullRequestPayload.repository?.owner?.login;
   const name = pullRequestPayload.repository?.name;
   const number = pullRequestPayload.pull_request?.number;
+  const title = pullRequestPayload.pull_request?.title;
+  const body = pullRequestPayload.pull_request?.body;
+  const author = pullRequestPayload.pull_request?.user?.login;
 
   if (
     installationId === undefined ||
     owner === undefined ||
     name === undefined ||
-    number === undefined
+    number === undefined ||
+    title === undefined ||
+    author === undefined
   ) {
     throw new Error("Invalid pull_request.opened webhook payload.");
   }
@@ -81,7 +94,7 @@ export function parseGitHubWebhook({
     type: "pull_request.opened",
     installationId,
     repository: { owner, name },
-    pullRequest: { number },
+    pullRequest: { number, title, body: body ?? "", author },
   };
 }
 

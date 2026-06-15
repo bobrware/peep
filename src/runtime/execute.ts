@@ -53,6 +53,9 @@ export async function executeWebhookEvent({
     owner: event.repository.owner,
     repo: event.repository.name,
     pullNumber: event.pullRequest.number,
+    title: event.pullRequest.title,
+    body: event.pullRequest.body,
+    author: event.pullRequest.author,
     logger,
   });
   const llm = createLlm(config.llm);

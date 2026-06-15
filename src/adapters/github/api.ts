@@ -1,11 +1,11 @@
 import { App } from "octokit";
 import type { ReviewFinding } from "../../core/schema.js";
-import type { ReactionContent, SubmitReviewOptions } from "../../ports/config.js";
+import type { PullRequestContext, ReactionContent, SubmitReviewOptions } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
 import { logger as defaultLogger, type PeepLogger } from "../../runtime/logger.js";
 import { mapFindingsToReviewComments } from "./diff.js";
 
-export type GitHubPullRequestAdapter = VcsPort & {
+export type GitHubPullRequestAdapter = VcsPort & PullRequestContext & {
   react: (content: ReactionContent) => Promise<void>;
   submitReview: <TFinding extends ReviewFinding>(
     findings: TFinding[],
@@ -24,6 +24,9 @@ export type CreateGitHubPullRequestAdapterOptions = {
   owner: string;
   repo: string;
   pullNumber: number;
+  title: string;
+  body: string;
+  author: string;
   client?: GitHubApiClient;
   logger?: PeepLogger;
 };
@@ -35,6 +38,9 @@ export async function createGitHubPullRequestAdapter({
   owner,
   repo,
   pullNumber,
+  title,
+  body,
+  author,
   client,
   logger = defaultLogger,
 }: CreateGitHubPullRequestAdapterOptions): Promise<GitHubPullRequestAdapter> {
@@ -42,6 +48,13 @@ export async function createGitHubPullRequestAdapter({
     client ?? (await createInstallationClient({ appId, privateKey, installationId }));
 
   const adapter: GitHubPullRequestAdapter = {
+    owner,
+    repo,
+    number: pullNumber,
+    title,
+    body,
+    author,
+
     async fetchPullRequestDiff() {
       const response = await apiClient.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
         owner,

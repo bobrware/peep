@@ -7,6 +7,12 @@ export type PullRequestOpenedContext = {
 };
 
 export type PullRequestContext = {
+  owner: string;
+  repo: string;
+  number: number;
+  title: string;
+  body: string;
+  author: string;
   react: (content: ReactionContent) => Promise<void>;
   submitReview: <TFinding extends ReviewFinding>(
     findings: TFinding[],
