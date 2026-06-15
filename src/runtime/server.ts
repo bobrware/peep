@@ -38,18 +38,25 @@ export function createWebhookServer({
       return;
     }
 
+    let event;
+
     try {
       const payload = JSON.parse(body.toString("utf8")) as unknown;
       const eventName = getHeader(request, "x-github-event");
-      const event = parseGitHubWebhook({ event: eventName ?? "", payload });
+      event = parseGitHubWebhook({ event: eventName ?? "", payload });
+    } catch (error) {
+      writeResponse(response, 400, error instanceof Error ? error.message : "Bad request");
+      return;
+    }
 
+    try {
       if (event !== undefined) {
         await execute({ config, event });
       }
 
       writeResponse(response, 202, "Accepted");
     } catch (error) {
-      writeResponse(response, 400, error instanceof Error ? error.message : "Bad request");
+      writeResponse(response, 500, error instanceof Error ? error.message : "Internal server error");
     }
   });
 }
