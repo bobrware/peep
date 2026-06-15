@@ -18,7 +18,7 @@ export default defineConfig({
   llm: {
     provider: "openrouter",
     apiKey: requiredEnv("OPENROUTER_API_KEY", "OPENROUTER_KEY"),
-    model: process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4",
+    model: process.env.OPENROUTER_MODEL ?? "z-ai/glm-5.1",
   },
   rules: [
     "Only report concrete correctness, security, or maintainability issues introduced by this diff.",
@@ -36,7 +36,9 @@ export default defineConfig({
       });
       const reviewFindings = findings.map(({ severity, ...finding }) => ({
         ...finding,
-        message: `${formatPepperSeverity(severity)} ${finding.message}`,
+        message: `${formatPepperSeverity(severity)} ${severity.charAt(0).toUpperCase() + severity.slice(1)}
+
+        ${finding.message}`,
       }));
 
       await pr.submitReview(reviewFindings, {
