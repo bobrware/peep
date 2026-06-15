@@ -1,4 +1,5 @@
 import type { Finding } from "../core/schema.js";
+import type { FlexibleSchema } from "ai";
 
 export type PullRequestOpenedContext = {
   pr: PullRequestContext;
@@ -14,7 +15,7 @@ export type ReviewAgent = {
 };
 
 export type ReviewOptions = {
-  schema?: unknown;
+  schema?: FlexibleSchema;
 };
 
 export type SubmitReviewOptions = {
