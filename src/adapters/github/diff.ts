@@ -2,6 +2,8 @@ import type { Finding } from "../../core/schema.js";
 
 export type GitHubReviewComment = {
   path: string;
+  start_line?: number;
+  start_side?: "LEFT" | "RIGHT";
   line: number;
   side: "LEFT" | "RIGHT";
   body: string;
@@ -16,10 +18,42 @@ export function mapFindingsToReviewComments(
   return findings.flatMap((finding) => {
     const key = formatLocationKey(finding.path, finding.line, finding.side);
 
-    return locations.has(key)
-      ? [{ path: finding.path, line: finding.line, side: finding.side, body: finding.message }]
-      : [];
+    if (!locations.has(key)) {
+      return [];
+    }
+
+    const comment: GitHubReviewComment = {
+      path: finding.path,
+      line: finding.line,
+      side: finding.side,
+      body: finding.message,
+    };
+
+    if (isMappableRange(finding, locations)) {
+      comment.start_line = finding.startLine;
+      comment.start_side = finding.startSide;
+    }
+
+    return [comment];
   });
+}
+
+function isMappableRange(finding: Finding, locations: Set<string>): boolean {
+  if (finding.startLine === undefined || finding.startSide === undefined) {
+    return false;
+  }
+
+  if (finding.startSide !== finding.side || finding.startLine >= finding.line) {
+    return false;
+  }
+
+  for (let line = finding.startLine; line <= finding.line; line += 1) {
+    if (!locations.has(formatLocationKey(finding.path, line, finding.side))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function parseDiffLocations(diff: string): Set<string> {
