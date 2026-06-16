@@ -27,8 +27,10 @@ export type PullRequestContext = {
   comment: (body: string) => Promise<void>;
   getReviewComment: (commentId: number) => Promise<ReviewComment>;
   listReviewComments: () => Promise<ReviewComment[]>;
+  listReviewThreads: () => Promise<ReviewThread[]>;
   react: (content: ReactionContent) => Promise<void>;
   replyToReviewComment: (commentId: number, body: string) => Promise<ReviewComment>;
+  resolveReviewThread: (threadId: string) => Promise<void>;
   submitReviewComments: (
     comments: ReviewCommentDraft[],
     options?: SubmitReviewOptions,
@@ -65,6 +67,12 @@ export type ReviewCommentDraft = {
   line: number;
   side: "LEFT" | "RIGHT";
   body: string;
+};
+
+export type ReviewThread = {
+  id: string;
+  isResolved: boolean;
+  comments: ReviewComment[];
 };
 
 export type ReactionContent =

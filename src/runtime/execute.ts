@@ -95,7 +95,9 @@ function isReviewCommentEvent(
   return "comment" in event;
 }
 
-function toReviewComment(comment: Extract<GitHubWebhookEvent, { comment: unknown }>["comment"]): ReviewComment {
+function toReviewComment(
+  comment: Extract<GitHubWebhookEvent, { comment: unknown }>["comment"],
+): ReviewComment {
   return comment;
 }
 

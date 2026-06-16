@@ -5,6 +5,7 @@ import type {
   ReactionContent,
   ReviewComment,
   ReviewCommentDraft,
+  ReviewThread,
   SubmitReviewOptions,
 } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
@@ -14,8 +15,10 @@ import { mapFindingsToReviewComments } from "./diff.js";
 export type GitHubPullRequestAdapter = VcsPort &
   PullRequestContext & {
     getReviewComment: (commentId: number) => Promise<ReviewComment>;
+    listReviewThreads: () => Promise<ReviewThread[]>;
     react: (content: ReactionContent) => Promise<void>;
     replyToReviewComment: (commentId: number, body: string) => Promise<ReviewComment>;
+    resolveReviewThread: (threadId: string) => Promise<void>;
     submitReviewComments: (
       comments: ReviewCommentDraft[],
       options?: SubmitReviewOptions,
@@ -148,6 +151,23 @@ export async function createGitHubPullRequestAdapter({
       return comments;
     },
 
+    async listReviewThreads() {
+      logger.info({ owner, repo, pullNumber }, "listing pull request review threads");
+
+      const response = await apiClient.request("POST /graphql", {
+        query: listReviewThreadsQuery,
+        variables: { owner, repo, pullNumber },
+      });
+      const threads = getReviewThreads(response);
+
+      logger.info(
+        { owner, repo, pullNumber, reviewThreads: threads.length },
+        "listed pull request review threads",
+      );
+
+      return threads;
+    },
+
     async react(content) {
       logger.info({ owner, repo, pullNumber, content }, "reacting to pull request");
 
@@ -163,7 +183,10 @@ export async function createGitHubPullRequestAdapter({
     },
 
     async replyToReviewComment(commentId, body) {
-      logger.info({ owner, repo, pullNumber, commentId }, "replying to pull request review comment");
+      logger.info(
+        { owner, repo, pullNumber, commentId },
+        "replying to pull request review comment",
+      );
 
       const response = await apiClient.request(
         "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
@@ -183,6 +206,17 @@ export async function createGitHubPullRequestAdapter({
       );
 
       return comment;
+    },
+
+    async resolveReviewThread(threadId) {
+      logger.info({ owner, repo, pullNumber, threadId }, "resolving pull request review thread");
+
+      await apiClient.request("POST /graphql", {
+        query: resolveReviewThreadMutation,
+        variables: { threadId },
+      });
+
+      logger.info({ owner, repo, pullNumber, threadId }, "resolved pull request review thread");
     },
 
     async submitReviewComments(comments, options = {}) {
@@ -244,6 +278,42 @@ export async function createGitHubPullRequestAdapter({
 
   return adapter;
 }
+
+const listReviewThreadsQuery = `
+  query PeepReviewThreads($owner: String!, $repo: String!, $pullNumber: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $pullNumber) {
+        reviewThreads(first: 100) {
+          nodes {
+            id
+            isResolved
+            comments(first: 100) {
+              nodes {
+                databaseId
+                body
+                author { login }
+                path
+                line
+                diffHunk
+                createdAt
+                updatedAt
+                url
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const resolveReviewThreadMutation = `
+  mutation PeepResolveReviewThread($threadId: ID!) {
+    resolveReviewThread(input: { threadId: $threadId }) {
+      thread { id isResolved }
+    }
+  }
+`;
 
 async function createInstallationClient({
   appId,
@@ -319,6 +389,74 @@ function getReviewComment(response: unknown): ReviewComment {
   }
 
   return toReviewComment(response.data);
+}
+
+function getReviewThreads(response: unknown): ReviewThread[] {
+  const nodes = getGraphqlReviewThreadNodes(response);
+
+  return nodes.flatMap((node) => {
+    if (!isObject(node) || typeof node.id !== "string" || typeof node.isResolved !== "boolean") {
+      return [];
+    }
+
+    return [
+      {
+        id: node.id,
+        isResolved: node.isResolved,
+        comments: getGraphqlReviewThreadComments(node),
+      },
+    ];
+  });
+}
+
+function getGraphqlReviewThreadNodes(response: unknown): unknown[] {
+  if (!isObject(response) || !isObject(response.data)) {
+    throw new Error("GitHub review threads response did not contain data.");
+  }
+
+  const repository = response.data.repository;
+  const pullRequest = isObject(repository) ? repository.pullRequest : undefined;
+  const reviewThreads = isObject(pullRequest) ? pullRequest.reviewThreads : undefined;
+  const nodes = isObject(reviewThreads) ? reviewThreads.nodes : undefined;
+
+  if (!Array.isArray(nodes)) {
+    throw new Error("GitHub review threads response did not contain thread nodes.");
+  }
+
+  return nodes;
+}
+
+function getGraphqlReviewThreadComments(thread: Record<string, unknown>): ReviewComment[] {
+  const comments = thread.comments;
+  const nodes = isObject(comments) ? comments.nodes : undefined;
+
+  if (!Array.isArray(nodes)) {
+    return [];
+  }
+
+  return nodes.flatMap((comment) => {
+    return isGraphqlReviewCommentData(comment) ? [toGraphqlReviewComment(comment)] : [];
+  });
+}
+
+function toGraphqlReviewComment(comment: Record<string, unknown>): ReviewComment {
+  const author = comment.author;
+
+  return {
+    id: comment.databaseId as number,
+    body: comment.body as string,
+    path: typeof comment.path === "string" ? comment.path : undefined,
+    line: typeof comment.line === "number" ? comment.line : undefined,
+    diffHunk: typeof comment.diffHunk === "string" ? comment.diffHunk : undefined,
+    author: isObject(author) && typeof author.login === "string" ? author.login : undefined,
+    createdAt: typeof comment.createdAt === "string" ? comment.createdAt : undefined,
+    updatedAt: typeof comment.updatedAt === "string" ? comment.updatedAt : undefined,
+    url: typeof comment.url === "string" ? comment.url : undefined,
+  };
+}
+
+function isGraphqlReviewCommentData(value: unknown): value is Record<string, unknown> {
+  return isObject(value) && typeof value.databaseId === "number" && typeof value.body === "string";
 }
 
 function toReviewComment(comment: Record<string, unknown>): ReviewComment {

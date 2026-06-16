@@ -38,6 +38,7 @@ export type {
   PullRequestReviewCommentEventContext,
   ReviewComment,
   ReviewCommentDraft,
+  ReviewThread,
 } from "./ports/config.js";
 export type { VcsPort } from "./ports/vcs.js";
 export type { ExecuteWebhookEventOptions } from "./runtime/execute.js";

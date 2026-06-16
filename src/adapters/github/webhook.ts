@@ -157,7 +157,9 @@ export function parseGitHubWebhook({
   } as GitHubWebhookEvent;
 }
 
-function parseReviewCommentEvent(payload: PullRequestPayload): GitHubReviewCommentEvent | undefined {
+function parseReviewCommentEvent(
+  payload: PullRequestPayload,
+): GitHubReviewCommentEvent | undefined {
   if (payload.action !== "created") {
     return undefined;
   }
