@@ -22,6 +22,24 @@ export type GitHubPullRequestEvent = {
   };
 };
 
+export type GitHubReviewCommentEvent = Omit<GitHubPullRequestEvent, "type"> & {
+  type: "pull_request_review_comment.created";
+  comment: {
+    id: number;
+    body: string;
+    author: string;
+    inReplyToId?: number;
+    path?: string;
+    line?: number;
+    side?: "LEFT" | "RIGHT";
+    diffHunk?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    url?: string;
+    htmlUrl?: string;
+  };
+};
+
 export type GitHubPullRequestOpenedEvent = GitHubPullRequestEvent & {
   type: "pull_request.opened";
 };
@@ -37,7 +55,8 @@ export type GitHubPullRequestSynchronizeEvent = GitHubPullRequestEvent & {
 export type GitHubWebhookEvent =
   | GitHubPullRequestOpenedEvent
   | GitHubPullRequestReadyForReviewEvent
-  | GitHubPullRequestSynchronizeEvent;
+  | GitHubPullRequestSynchronizeEvent
+  | GitHubReviewCommentEvent;
 
 export type ParseGitHubWebhookOptions = {
   event: string;
@@ -56,6 +75,20 @@ type PullRequestPayload = {
     title?: string;
     body?: string | null;
     draft?: boolean;
+    user?: { login?: string };
+  };
+  comment?: {
+    id?: number;
+    body?: string;
+    in_reply_to_id?: number;
+    path?: string;
+    line?: number;
+    side?: string;
+    diff_hunk?: string;
+    created_at?: string;
+    updated_at?: string;
+    url?: string;
+    html_url?: string;
     user?: { login?: string };
   };
 };
@@ -78,11 +111,19 @@ export function parseGitHubWebhook({
   event,
   payload,
 }: ParseGitHubWebhookOptions): GitHubWebhookEvent | undefined {
-  if (event !== "pull_request" || !isObject(payload)) {
+  if (!isObject(payload)) {
     return undefined;
   }
 
   const pullRequestPayload = payload as PullRequestPayload;
+
+  if (event === "pull_request_review_comment") {
+    return parseReviewCommentEvent(pullRequestPayload);
+  }
+
+  if (event !== "pull_request") {
+    return undefined;
+  }
 
   const type = mapPullRequestAction(pullRequestPayload.action);
 
@@ -112,6 +153,75 @@ export function parseGitHubWebhook({
 
   return {
     type,
+    ...parsePullRequestPayload(type, pullRequestPayload),
+  } as GitHubWebhookEvent;
+}
+
+function parseReviewCommentEvent(payload: PullRequestPayload): GitHubReviewCommentEvent | undefined {
+  if (payload.action !== "created") {
+    return undefined;
+  }
+
+  const pullRequestEvent = parsePullRequestPayload("pull_request_review_comment.created", payload);
+  const comment = payload.comment;
+  const commentId = comment?.id;
+  const commentBody = comment?.body;
+  const commentAuthor = comment?.user?.login;
+
+  if (
+    comment === undefined ||
+    commentId === undefined ||
+    commentBody === undefined ||
+    commentAuthor === undefined
+  ) {
+    throw new Error("Invalid pull_request_review_comment.created webhook payload.");
+  }
+
+  return {
+    ...pullRequestEvent,
+    type: "pull_request_review_comment.created",
+    comment: {
+      id: commentId,
+      body: commentBody,
+      author: commentAuthor,
+      inReplyToId: comment.in_reply_to_id,
+      path: comment.path,
+      line: comment.line,
+      side: comment.side === "LEFT" || comment.side === "RIGHT" ? comment.side : undefined,
+      diffHunk: comment.diff_hunk,
+      createdAt: comment.created_at,
+      updatedAt: comment.updated_at,
+      url: comment.url,
+      htmlUrl: comment.html_url,
+    },
+  };
+}
+
+function parsePullRequestPayload(
+  type: string,
+  payload: PullRequestPayload,
+): Omit<GitHubPullRequestEvent, "type"> {
+  const installationId = payload.installation?.id;
+  const owner = payload.repository?.owner?.login;
+  const name = payload.repository?.name;
+  const number = payload.pull_request?.number;
+  const title = payload.pull_request?.title;
+  const body = payload.pull_request?.body;
+  const draft = payload.pull_request?.draft ?? false;
+  const author = payload.pull_request?.user?.login;
+
+  if (
+    installationId === undefined ||
+    owner === undefined ||
+    name === undefined ||
+    number === undefined ||
+    title === undefined ||
+    author === undefined
+  ) {
+    throw new Error(`Invalid ${type} webhook payload.`);
+  }
+
+  return {
     installationId,
     repository: { owner, name },
     pullRequest: { number, title, body: body ?? "", author, draft },

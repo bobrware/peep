@@ -125,6 +125,65 @@ describe("parseGitHubWebhook", () => {
     });
   });
 
+  it("maps pull_request_review_comment created payloads to the internal event", () => {
+    const event = parseGitHubWebhook({
+      event: "pull_request_review_comment",
+      payload: {
+        action: "created",
+        installation: { id: 123 },
+        repository: { name: "peep", owner: { login: "bobrware" } },
+        pull_request: {
+          number: 42,
+          title: "Add feature",
+          body: "Body",
+          draft: false,
+          user: { login: "alice" },
+        },
+        comment: {
+          id: 456,
+          in_reply_to_id: 123,
+          body: "This is invalid, close this.",
+          path: "src/example.ts",
+          line: 12,
+          side: "RIGHT",
+          diff_hunk: "@@ -10,1 +10,3 @@",
+          created_at: "2026-06-16T00:00:00Z",
+          updated_at: "2026-06-16T00:01:00Z",
+          url: "https://api.github.com/comment/456",
+          html_url: "https://github.com/bobrware/peep/pull/42#discussion_r456",
+          user: { login: "bob" },
+        },
+      },
+    });
+
+    expect(event).toEqual({
+      type: "pull_request_review_comment.created",
+      installationId: 123,
+      repository: { owner: "bobrware", name: "peep" },
+      pullRequest: {
+        number: 42,
+        title: "Add feature",
+        body: "Body",
+        author: "alice",
+        draft: false,
+      },
+      comment: {
+        id: 456,
+        inReplyToId: 123,
+        body: "This is invalid, close this.",
+        author: "bob",
+        path: "src/example.ts",
+        line: 12,
+        side: "RIGHT",
+        diffHunk: "@@ -10,1 +10,3 @@",
+        createdAt: "2026-06-16T00:00:00Z",
+        updatedAt: "2026-06-16T00:01:00Z",
+        url: "https://api.github.com/comment/456",
+        htmlUrl: "https://github.com/bobrware/peep/pull/42#discussion_r456",
+      },
+    });
+  });
+
   it("throws a clear error for malformed pull_request opened payloads", () => {
     expect(() =>
       parseGitHubWebhook({

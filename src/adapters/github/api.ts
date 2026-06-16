@@ -3,8 +3,8 @@ import type { ReviewFinding } from "../../core/schema.js";
 import type {
   PullRequestContext,
   ReactionContent,
-  ReviewCommentDraft,
   ReviewComment,
+  ReviewCommentDraft,
   SubmitReviewOptions,
 } from "../../ports/config.js";
 import type { VcsPort } from "../../ports/vcs.js";
@@ -13,7 +13,9 @@ import { mapFindingsToReviewComments } from "./diff.js";
 
 export type GitHubPullRequestAdapter = VcsPort &
   PullRequestContext & {
+    getReviewComment: (commentId: number) => Promise<ReviewComment>;
     react: (content: ReactionContent) => Promise<void>;
+    replyToReviewComment: (commentId: number, body: string) => Promise<ReviewComment>;
     submitReviewComments: (
       comments: ReviewCommentDraft[],
       options?: SubmitReviewOptions,
@@ -106,6 +108,24 @@ export async function createGitHubPullRequestAdapter({
       });
     },
 
+    async getReviewComment(commentId) {
+      logger.info({ owner, repo, pullNumber, commentId }, "getting pull request review comment");
+
+      const response = await apiClient.request(
+        "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}",
+        {
+          owner,
+          repo,
+          comment_id: commentId,
+        },
+      );
+      const comment = getReviewComment(response);
+
+      logger.info({ owner, repo, pullNumber, commentId }, "got pull request review comment");
+
+      return comment;
+    },
+
     async listReviewComments() {
       logger.info({ owner, repo, pullNumber }, "listing pull request review comments");
 
@@ -140,6 +160,29 @@ export async function createGitHubPullRequestAdapter({
           accept: "application/vnd.github+json",
         },
       });
+    },
+
+    async replyToReviewComment(commentId, body) {
+      logger.info({ owner, repo, pullNumber, commentId }, "replying to pull request review comment");
+
+      const response = await apiClient.request(
+        "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
+        {
+          owner,
+          repo,
+          pull_number: pullNumber,
+          comment_id: commentId,
+          body,
+        },
+      );
+      const comment = getReviewComment(response);
+
+      logger.info(
+        { owner, repo, pullNumber, commentId, replyCommentId: comment.id },
+        "replied to pull request review comment",
+      );
+
+      return comment;
     },
 
     async submitReviewComments(comments, options = {}) {
@@ -266,34 +309,45 @@ function getReviewComments(response: unknown): ReviewComment[] {
   }
 
   return response.data.flatMap((comment) => {
-    if (!isObject(comment) || typeof comment.id !== "number" || typeof comment.body !== "string") {
-      return [];
-    }
-
-    return [
-      {
-        id: comment.id,
-        body: comment.body,
-        path: typeof comment.path === "string" ? comment.path : undefined,
-        line: typeof comment.line === "number" ? comment.line : undefined,
-        side: comment.side === "LEFT" || comment.side === "RIGHT" ? comment.side : undefined,
-        startLine: typeof comment.start_line === "number" ? comment.start_line : undefined,
-        startSide:
-          comment.start_side === "LEFT" || comment.start_side === "RIGHT"
-            ? comment.start_side
-            : undefined,
-        originalLine: typeof comment.original_line === "number" ? comment.original_line : undefined,
-        originalStartLine:
-          typeof comment.original_start_line === "number" ? comment.original_start_line : undefined,
-        diffHunk: typeof comment.diff_hunk === "string" ? comment.diff_hunk : undefined,
-        author: getCommentAuthor(comment),
-        createdAt: typeof comment.created_at === "string" ? comment.created_at : undefined,
-        updatedAt: typeof comment.updated_at === "string" ? comment.updated_at : undefined,
-        url: typeof comment.url === "string" ? comment.url : undefined,
-        htmlUrl: typeof comment.html_url === "string" ? comment.html_url : undefined,
-      },
-    ];
+    return isReviewCommentData(comment) ? [toReviewComment(comment)] : [];
   });
+}
+
+function getReviewComment(response: unknown): ReviewComment {
+  if (!isObject(response) || !isReviewCommentData(response.data)) {
+    throw new Error("GitHub review comment response did not contain comment data.");
+  }
+
+  return toReviewComment(response.data);
+}
+
+function toReviewComment(comment: Record<string, unknown>): ReviewComment {
+  return {
+    id: comment.id as number,
+    body: comment.body as string,
+    inReplyToId: typeof comment.in_reply_to_id === "number" ? comment.in_reply_to_id : undefined,
+    path: typeof comment.path === "string" ? comment.path : undefined,
+    line: typeof comment.line === "number" ? comment.line : undefined,
+    side: comment.side === "LEFT" || comment.side === "RIGHT" ? comment.side : undefined,
+    startLine: typeof comment.start_line === "number" ? comment.start_line : undefined,
+    startSide:
+      comment.start_side === "LEFT" || comment.start_side === "RIGHT"
+        ? comment.start_side
+        : undefined,
+    originalLine: typeof comment.original_line === "number" ? comment.original_line : undefined,
+    originalStartLine:
+      typeof comment.original_start_line === "number" ? comment.original_start_line : undefined,
+    diffHunk: typeof comment.diff_hunk === "string" ? comment.diff_hunk : undefined,
+    author: getCommentAuthor(comment),
+    createdAt: typeof comment.created_at === "string" ? comment.created_at : undefined,
+    updatedAt: typeof comment.updated_at === "string" ? comment.updated_at : undefined,
+    url: typeof comment.url === "string" ? comment.url : undefined,
+    htmlUrl: typeof comment.html_url === "string" ? comment.html_url : undefined,
+  };
+}
+
+function isReviewCommentData(value: unknown): value is Record<string, unknown> {
+  return isObject(value) && typeof value.id === "number" && typeof value.body === "string";
 }
 
 function getCommentAuthor(comment: Record<string, unknown>): string | undefined {

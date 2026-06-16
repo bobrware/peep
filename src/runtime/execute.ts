@@ -9,7 +9,7 @@ import { reviewPullRequest } from "../core/pipeline.js";
 import { findingSchema, type Finding, type ReviewFinding } from "../core/schema.js";
 import type { FlexibleSchema } from "ai";
 import type { LlmPort } from "../ports/llm.js";
-import type { PeepConfig, ReviewOptions } from "../ports/config.js";
+import type { PeepConfig, ReviewComment, ReviewOptions } from "../ports/config.js";
 import { logger as defaultLogger, type PeepLogger } from "./logger.js";
 
 export type ExecuteWebhookEventOptions = {
@@ -61,8 +61,9 @@ export async function executeWebhookEvent({
   });
   const llm = createLoggedLlm(createLlm(config.llm), config.llm, logger);
 
-  await handler({
+  const context = {
     pr,
+    ...(isReviewCommentEvent(event) ? { comment: toReviewComment(event.comment) } : {}),
     agent: {
       async review<TFinding extends ReviewFinding = Finding>(options?: ReviewOptions) {
         const schema = options?.schema ?? findingSchema.array();
@@ -81,9 +82,21 @@ export async function executeWebhookEvent({
         return findings as TFinding[];
       },
     },
-  });
+  };
+
+  await handler(context as never);
 
   logger.info({ event: event.type }, "webhook handler completed");
+}
+
+function isReviewCommentEvent(
+  event: GitHubWebhookEvent,
+): event is Extract<GitHubWebhookEvent, { comment: unknown }> {
+  return "comment" in event;
+}
+
+function toReviewComment(comment: Extract<GitHubWebhookEvent, { comment: unknown }>["comment"]): ReviewComment {
+  return comment;
 }
 
 function createDefaultLlm(config: PeepConfig["llm"]): LlmPort<Finding[], FlexibleSchema> {
