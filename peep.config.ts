@@ -14,6 +14,7 @@ const pepperFindingSchema = findingSchema.extend({
   category: categorySchema,
   title: z.string(),
   agentPrompt: z.string(),
+  quickWin: z.boolean().default(false),
 });
 
 type PepperFinding = z.infer<typeof pepperFindingSchema>;
@@ -41,6 +42,7 @@ export default defineConfig({
     "Use bell only for clear but low-impact issues; do not report speculative bell-pepper nits.",
     "Every finding object must include category as one of: correctness, security, performance, maintainability, readability. Do not omit category.",
     "Classify each finding into exactly one category: correctness, security, performance, maintainability, or readability.",
+    "Every finding object may include quickWin: true only when the fix is small, localized, and low-risk; otherwise use false or omit it.",
     "Every finding object must include title: a bold, one-line imperative or problem statement of 12 words or fewer, such as 'Remove the redundant null check.' or 'Use a composite key for checklist rows.'",
     "Every finding object must include message: one concise paragraph explaining the issue and the recommended fix.",
     "Every finding object must include agentPrompt: a standalone prompt for an AI coding agent that identifies the file/location, explains what to verify, asks it to fix the issue only if valid, and asks it to run the narrowest relevant check.",
@@ -57,11 +59,11 @@ export default defineConfig({
       }
 
       await acknowledgeReview(context);
-      await reviewReadyPullRequest(context);
+      await reviewReadyPullRequestWithFailureComment(context);
     },
     "pull_request.ready_for_review": async (context) => {
       await acknowledgeReview(context);
-      await reviewReadyPullRequest(context);
+      await reviewReadyPullRequestWithFailureComment(context);
     },
     "pull_request.synchronize": async (context) => {
       const { pr } = context;
@@ -71,7 +73,7 @@ export default defineConfig({
       }
 
       await pr.react("eyes");
-      await reviewReadyPullRequest(context);
+      await reviewReadyPullRequestWithFailureComment(context);
     },
   },
 });
@@ -80,20 +82,34 @@ async function acknowledgeReview({ pr }: PullRequestEventContext): Promise<void>
   await pr.comment("👀 Peep is reviewing this PR.");
 }
 
+async function reviewReadyPullRequestWithFailureComment(
+  context: PullRequestEventContext,
+): Promise<void> {
+  try {
+    await reviewReadyPullRequest(context);
+  } catch (error) {
+    await context.pr.comment(formatReviewFailureComment(error));
+    throw error;
+  }
+}
+
 async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): Promise<void> {
   const findings = await agent.review<PepperFinding>({
     schema: z.array(pepperFindingSchema),
   });
-  const reviewFindings = findings.map(({ severity, category, title, agentPrompt, ...finding }) => ({
-    ...finding,
-    message: formatReviewComment({
-      category,
-      severity,
-      title,
-      explanation: finding.message,
-      agentPrompt,
+  const reviewFindings = findings.map(
+    ({ severity, category, title, agentPrompt, quickWin, ...finding }) => ({
+      ...finding,
+      message: formatReviewComment({
+        category,
+        severity,
+        quickWin,
+        title,
+        explanation: finding.message,
+        agentPrompt,
+      }),
     }),
-  }));
+  );
   const diff = await pr.fetchDiff();
   const { comments } = prepareReviewFindings(reviewFindings, diff);
   const existingComments = await pr.listReviewComments();
@@ -104,7 +120,7 @@ async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): P
   }
 
   await pr.submitReviewComments(newComments, {
-    event: newComments.some((comment) => comment.body.includes("🌶️🌶️🌶️🌶️ Ghost"))
+    event: newComments.some((comment) => comment.body.includes("_🌶️🌶️🌶️🌶️ Ghost_"))
       ? "REQUEST_CHANGES"
       : "COMMENT",
   });
@@ -130,27 +146,75 @@ function formatExistingCommentLocation(comment: ReviewComment): string {
 function formatReviewComment({
   category,
   severity,
+  quickWin,
   title,
   explanation,
   agentPrompt,
 }: {
   category: PepperFinding["category"];
   severity: PepperFinding["severity"];
+  quickWin: boolean;
   title: string;
   explanation: string;
   agentPrompt: string;
 }): string {
   return [
-    `${formatCategory(category)} | ${formatPepperSeverity(severity)}`,
+    formatReviewHeader({ category, severity, quickWin }),
     `**${normalizeInlineMarkdown(title)}**`,
     normalizeReviewMessage(explanation),
     `<details>`,
-    `<summary>Prompt for AI Agents</summary>`,
+    `<summary>🤖 Prompt for AI Agents</summary>`,
     "",
+    "```",
     normalizeReviewMessage(agentPrompt),
+    "```",
     "",
     `</details>`,
   ].join("\n\n");
+}
+
+function formatReviewHeader({
+  category,
+  severity,
+  quickWin,
+}: {
+  category: PepperFinding["category"];
+  severity: PepperFinding["severity"];
+  quickWin: boolean;
+}): string {
+  return [
+    `_⚠️ Potential issue_`,
+    `_${formatMajorSeverity(severity)}_`,
+    `_${formatCategory(category)}_`,
+    ...(quickWin ? [`_⚡ Quick win_`] : []),
+  ].join(" | ");
+}
+
+function formatReviewFailureComment(error: unknown): string {
+  return [
+    "⚠️ Peep review failed.",
+    "The review run did not complete. Check the Peep server logs for the full error and delivery ID.",
+    `Error: ${formatSafeError(error)}`,
+  ].join("\n\n");
+}
+
+function formatSafeError(error: unknown): string {
+  if (isZodError(error)) {
+    return `Model output did not match the configured review schema: ${error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
+      .join("; ")}${error.issues.length > 3 ? "; …" : ""}`;
+  }
+
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`.slice(0, 500);
+  }
+
+  return "Unknown error";
+}
+
+function isZodError(error: unknown): error is z.ZodError {
+  return error instanceof z.ZodError;
 }
 
 function formatCategory(category: PepperFinding["category"]): string {
@@ -168,7 +232,7 @@ function formatCategory(category: PepperFinding["category"]): string {
   }
 }
 
-function formatPepperSeverity(severity: PepperFinding["severity"]): string {
+function formatMajorSeverity(severity: PepperFinding["severity"]): string {
   switch (severity) {
     case "bell":
       return "🫑 Bell";
