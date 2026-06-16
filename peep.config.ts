@@ -12,6 +12,8 @@ const categorySchema = z.enum([
 const pepperFindingSchema = findingSchema.extend({
   severity: pepperSeveritySchema,
   category: categorySchema,
+  title: z.string(),
+  agentPrompt: z.string(),
 });
 
 type PepperFinding = z.infer<typeof pepperFindingSchema>;
@@ -34,10 +36,15 @@ export default defineConfig({
     "Only report concrete correctness, security, or maintainability issues introduced by this diff.",
     "Do not comment on style preferences unless they hide a real bug.",
     "Keep each finding concise and actionable.",
+    "Every finding object must include severity as one of: bell, jalapeno, habanero, ghost. Do not omit severity.",
     "Rank severity as a pepper: bell is a nit, jalapeno is minor, habanero is major, ghost is critical.",
     "Use bell only for clear but low-impact issues; do not report speculative bell-pepper nits.",
+    "Every finding object must include category as one of: correctness, security, performance, maintainability, readability. Do not omit category.",
     "Classify each finding into exactly one category: correctness, security, performance, maintainability, or readability.",
-    "Review messages must be plain Markdown prose. Do not indent messages or wrap them in code fences.",
+    "Every finding object must include title: a bold, one-line imperative or problem statement of 12 words or fewer, such as 'Remove the redundant null check.' or 'Use a composite key for checklist rows.'",
+    "Every finding object must include message: one concise paragraph explaining the issue and the recommended fix.",
+    "Every finding object must include agentPrompt: a standalone prompt for an AI coding agent that identifies the file/location, explains what to verify, asks it to fix the issue only if valid, and asks it to run the narrowest relevant check.",
+    "Review messages, titles, and agent prompts must be plain Markdown prose. Do not indent them or wrap them in code fences.",
   ],
   on: {
     "pull_request.opened": async (context) => {
@@ -77,9 +84,15 @@ async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): P
   const findings = await agent.review<PepperFinding>({
     schema: z.array(pepperFindingSchema),
   });
-  const reviewFindings = findings.map(({ severity, category, ...finding }) => ({
+  const reviewFindings = findings.map(({ severity, category, title, agentPrompt, ...finding }) => ({
     ...finding,
-    message: `${formatCategory(category)} | ${formatPepperSeverity(severity)}\n\n${normalizeReviewMessage(finding.message)}`,
+    message: formatReviewComment({
+      category,
+      severity,
+      title,
+      explanation: finding.message,
+      agentPrompt,
+    }),
   }));
   const diff = await pr.fetchDiff();
   const { comments } = prepareReviewFindings(reviewFindings, diff);
@@ -112,6 +125,32 @@ function formatDraftCommentLocation(comment: ReviewCommentDraft): string {
 
 function formatExistingCommentLocation(comment: ReviewComment): string {
   return `${comment.path ?? ""}:${comment.startLine ?? ""}:${comment.startSide ?? ""}:${comment.line ?? ""}:${comment.side ?? ""}`;
+}
+
+function formatReviewComment({
+  category,
+  severity,
+  title,
+  explanation,
+  agentPrompt,
+}: {
+  category: PepperFinding["category"];
+  severity: PepperFinding["severity"];
+  title: string;
+  explanation: string;
+  agentPrompt: string;
+}): string {
+  return [
+    `${formatCategory(category)} | ${formatPepperSeverity(severity)}`,
+    `**${normalizeInlineMarkdown(title)}**`,
+    normalizeReviewMessage(explanation),
+    `<details>`,
+    `<summary>Prompt for AI Agents</summary>`,
+    "",
+    normalizeReviewMessage(agentPrompt),
+    "",
+    `</details>`,
+  ].join("\n\n");
 }
 
 function formatCategory(category: PepperFinding["category"]): string {
@@ -148,6 +187,10 @@ function normalizeReviewMessage(message: string): string {
     .replaceAll(/```/g, "")
     .replaceAll(/\n[ \t]+/g, "\n")
     .replaceAll(/[ \t]+/g, " ");
+}
+
+function normalizeInlineMarkdown(message: string): string {
+  return normalizeReviewMessage(message).replaceAll(/\n+/g, " ");
 }
 
 function requiredEnv(...names: string[]): string {
