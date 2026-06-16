@@ -1,4 +1,5 @@
 import type { ReviewFinding } from "../../core/schema.js";
+import type { ReviewCommentDraft } from "../../ports/config.js";
 
 export type GitHubReviewComment = {
   path: string;
@@ -9,33 +10,73 @@ export type GitHubReviewComment = {
   body: string;
 };
 
+export type PreparedReviewFindings<TFinding extends ReviewFinding = ReviewFinding> = {
+  comments: ReviewCommentDraft[];
+  unmappableFindings: TFinding[];
+};
+
+export function prepareReviewFindings<TFinding extends ReviewFinding>(
+  findings: TFinding[],
+  diff: string,
+): PreparedReviewFindings<TFinding> {
+  const locations = parseDiffLocations(diff);
+  const comments: ReviewCommentDraft[] = [];
+  const unmappableFindings: TFinding[] = [];
+
+  for (const finding of findings) {
+    const comment = mapFindingToReviewComment(finding, locations);
+
+    if (comment === undefined) {
+      unmappableFindings.push(finding);
+    } else {
+      comments.push(comment);
+    }
+  }
+
+  return { comments, unmappableFindings };
+}
+
 export function mapFindingsToReviewComments(
   findings: ReviewFinding[],
   diff: string,
 ): GitHubReviewComment[] {
-  const locations = parseDiffLocations(diff);
+  return prepareReviewFindings(findings, diff).comments.map(toGitHubReviewComment);
+}
 
-  return findings.flatMap((finding) => {
-    const key = formatLocationKey(finding.path, finding.line, finding.side);
+function mapFindingToReviewComment(
+  finding: ReviewFinding,
+  locations: Set<string>,
+): ReviewCommentDraft | undefined {
+  const key = formatLocationKey(finding.path, finding.line, finding.side);
 
-    if (!locations.has(key)) {
-      return [];
-    }
+  if (!locations.has(key)) {
+    return undefined;
+  }
 
-    const comment: GitHubReviewComment = {
-      path: finding.path,
-      line: finding.line,
-      side: finding.side,
-      body: finding.message,
-    };
+  const comment: ReviewCommentDraft = {
+    path: finding.path,
+    line: finding.line,
+    side: finding.side,
+    body: finding.message,
+  };
 
-    if (isMappableRange(finding, locations)) {
-      comment.start_line = finding.startLine;
-      comment.start_side = finding.startSide;
-    }
+  if (isMappableRange(finding, locations)) {
+    comment.startLine = finding.startLine;
+    comment.startSide = finding.startSide;
+  }
 
-    return [comment];
-  });
+  return comment;
+}
+
+function toGitHubReviewComment(comment: ReviewCommentDraft): GitHubReviewComment {
+  return {
+    path: comment.path,
+    start_line: comment.startLine,
+    start_side: comment.startSide,
+    line: comment.line,
+    side: comment.side,
+    body: comment.body,
+  };
 }
 
 function isMappableRange(finding: ReviewFinding, locations: Set<string>): boolean {

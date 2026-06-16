@@ -18,9 +18,14 @@ export type PullRequestContext = {
   body: string;
   author: string;
   draft: boolean;
+  fetchDiff: () => Promise<string>;
   comment: (body: string) => Promise<void>;
   listReviewComments: () => Promise<ReviewComment[]>;
   react: (content: ReactionContent) => Promise<void>;
+  submitReviewComments: (
+    comments: ReviewCommentDraft[],
+    options?: SubmitReviewOptions,
+  ) => Promise<void>;
   submitReview: <TFinding extends ReviewFinding>(
     findings: TFinding[],
     options?: SubmitReviewOptions,
@@ -33,7 +38,25 @@ export type ReviewComment = {
   path?: string;
   line?: number;
   side?: "LEFT" | "RIGHT";
+  startLine?: number;
+  startSide?: "LEFT" | "RIGHT";
+  originalLine?: number;
+  originalStartLine?: number;
+  diffHunk?: string;
   author?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  url?: string;
+  htmlUrl?: string;
+};
+
+export type ReviewCommentDraft = {
+  path: string;
+  startLine?: number;
+  startSide?: "LEFT" | "RIGHT";
+  line: number;
+  side: "LEFT" | "RIGHT";
+  body: string;
 };
 
 export type ReactionContent =

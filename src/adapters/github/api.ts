@@ -3,6 +3,7 @@ import type { ReviewFinding } from "../../core/schema.js";
 import type {
   PullRequestContext,
   ReactionContent,
+  ReviewCommentDraft,
   ReviewComment,
   SubmitReviewOptions,
 } from "../../ports/config.js";
@@ -13,6 +14,10 @@ import { mapFindingsToReviewComments } from "./diff.js";
 export type GitHubPullRequestAdapter = VcsPort &
   PullRequestContext & {
     react: (content: ReactionContent) => Promise<void>;
+    submitReviewComments: (
+      comments: ReviewCommentDraft[],
+      options?: SubmitReviewOptions,
+    ) => Promise<void>;
     submitReview: <TFinding extends ReviewFinding>(
       findings: TFinding[],
       options?: SubmitReviewOptions,
@@ -64,6 +69,10 @@ export async function createGitHubPullRequestAdapter({
     author,
     draft,
 
+    async fetchDiff() {
+      return adapter.fetchPullRequestDiff();
+    },
+
     async fetchPullRequestDiff() {
       const response = await apiClient.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
         owner,
@@ -112,6 +121,27 @@ export async function createGitHubPullRequestAdapter({
         headers: {
           accept: "application/vnd.github+json",
         },
+      });
+    },
+
+    async submitReviewComments(comments, options = {}) {
+      logger.info(
+        {
+          owner,
+          repo,
+          pullNumber,
+          inlineComments: comments.length,
+        },
+        "submitting pull request review comments",
+      );
+
+      await apiClient.request("POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
+        owner,
+        repo,
+        pull_number: pullNumber,
+        event: options.event ?? "COMMENT",
+        body: buildReviewCommentsBody(comments, options),
+        comments: comments.map(toGitHubReviewComment),
       });
     },
 
@@ -169,6 +199,39 @@ function buildReviewBody(findings: ReviewFinding[], options: SubmitReviewOptions
   return `Peep found ${findings.length} issue${findings.length === 1 ? "" : "s"}.`;
 }
 
+function buildReviewCommentsBody(
+  comments: ReviewCommentDraft[],
+  options: SubmitReviewOptions,
+): string {
+  if (typeof options.summary === "string") {
+    return options.summary;
+  }
+
+  if (comments.length === 0) {
+    return "Peep found no issues.";
+  }
+
+  return `Peep found ${comments.length} issue${comments.length === 1 ? "" : "s"}.`;
+}
+
+function toGitHubReviewComment(comment: ReviewCommentDraft): {
+  path: string;
+  start_line?: number;
+  start_side?: "LEFT" | "RIGHT";
+  line: number;
+  side: "LEFT" | "RIGHT";
+  body: string;
+} {
+  return {
+    path: comment.path,
+    start_line: comment.startLine,
+    start_side: comment.startSide,
+    line: comment.line,
+    side: comment.side,
+    body: comment.body,
+  };
+}
+
 function getReviewComments(response: unknown): ReviewComment[] {
   if (!isObject(response) || !Array.isArray(response.data)) {
     throw new Error("GitHub review comments response did not contain array data.");
@@ -186,7 +249,20 @@ function getReviewComments(response: unknown): ReviewComment[] {
         path: typeof comment.path === "string" ? comment.path : undefined,
         line: typeof comment.line === "number" ? comment.line : undefined,
         side: comment.side === "LEFT" || comment.side === "RIGHT" ? comment.side : undefined,
+        startLine: typeof comment.start_line === "number" ? comment.start_line : undefined,
+        startSide:
+          comment.start_side === "LEFT" || comment.start_side === "RIGHT"
+            ? comment.start_side
+            : undefined,
+        originalLine: typeof comment.original_line === "number" ? comment.original_line : undefined,
+        originalStartLine:
+          typeof comment.original_start_line === "number" ? comment.original_start_line : undefined,
+        diffHunk: typeof comment.diff_hunk === "string" ? comment.diff_hunk : undefined,
         author: getCommentAuthor(comment),
+        createdAt: typeof comment.created_at === "string" ? comment.created_at : undefined,
+        updatedAt: typeof comment.updated_at === "string" ? comment.updated_at : undefined,
+        url: typeof comment.url === "string" ? comment.url : undefined,
+        htmlUrl: typeof comment.html_url === "string" ? comment.html_url : undefined,
       },
     ];
   });

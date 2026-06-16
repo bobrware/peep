@@ -1,5 +1,5 @@
-import { defineConfig, findingSchema, z } from "./src/index.js";
-import type { PullRequestEventContext } from "./src/index.js";
+import { defineConfig, findingSchema, prepareReviewFindings, z } from "./src/index.js";
+import type { PullRequestEventContext, ReviewComment, ReviewCommentDraft } from "./src/index.js";
 
 const pepperSeveritySchema = z.enum(["bell", "jalapeno", "habanero", "ghost"]);
 const categorySchema = z.enum([
@@ -80,12 +80,37 @@ async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): P
     ...finding,
     message: `${formatCategory(category)} | ${formatPepperSeverity(severity)}\n\n${normalizeReviewMessage(finding.message)}`,
   }));
+  const diff = await pr.fetchDiff();
+  const { comments } = prepareReviewFindings(reviewFindings, diff);
+  const existingComments = await pr.listReviewComments();
+  const newComments = filterExistingLocationComments(comments, existingComments);
 
-  await pr.submitReview(reviewFindings, {
-    event: reviewFindings.some((finding) => finding.message.startsWith("🌶️🌶️🌶️🌶️"))
+  if (reviewFindings.length > 0 && newComments.length === 0) {
+    return;
+  }
+
+  await pr.submitReviewComments(newComments, {
+    event: newComments.some((comment) => comment.body.includes("🌶️🌶️🌶️🌶️ Ghost"))
       ? "REQUEST_CHANGES"
       : "COMMENT",
   });
+}
+
+function filterExistingLocationComments(
+  comments: ReviewCommentDraft[],
+  existingComments: ReviewComment[],
+): ReviewCommentDraft[] {
+  const existingLocations = new Set(existingComments.map(formatExistingCommentLocation));
+
+  return comments.filter((comment) => !existingLocations.has(formatDraftCommentLocation(comment)));
+}
+
+function formatDraftCommentLocation(comment: ReviewCommentDraft): string {
+  return `${comment.path}:${comment.startLine ?? ""}:${comment.startSide ?? ""}:${comment.line}:${comment.side}`;
+}
+
+function formatExistingCommentLocation(comment: ReviewComment): string {
+  return `${comment.path ?? ""}:${comment.startLine ?? ""}:${comment.startSide ?? ""}:${comment.line ?? ""}:${comment.side ?? ""}`;
 }
 
 function formatCategory(category: PepperFinding["category"]): string {

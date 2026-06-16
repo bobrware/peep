@@ -31,6 +31,7 @@ describe("createGitHubPullRequestAdapter", () => {
       draft: false,
     });
     await expect(adapter.fetchPullRequestDiff()).resolves.toBe("diff --git a/file.ts b/file.ts");
+    await expect(adapter.fetchDiff()).resolves.toBe("diff --git a/file.ts b/file.ts");
     expect(client.request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
       owner: "bobrware",
       repo: "peep",
@@ -141,6 +142,60 @@ index 1111111..2222222 100644
     );
   });
 
+  it("submits prepared review comments", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({ data: {} })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      client,
+    });
+
+    await adapter.submitReviewComments(
+      [
+        {
+          path: "src/example.ts",
+          startLine: 2,
+          startSide: "RIGHT",
+          line: 3,
+          side: "RIGHT",
+          body: "Fix this range",
+        },
+      ],
+      { event: "REQUEST_CHANGES", summary: "Custom summary" },
+    );
+
+    expect(client.request).toHaveBeenCalledWith(
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+      {
+        owner: "bobrware",
+        repo: "peep",
+        pull_number: 42,
+        event: "REQUEST_CHANGES",
+        body: "Custom summary",
+        comments: [
+          {
+            path: "src/example.ts",
+            start_line: 2,
+            start_side: "RIGHT",
+            line: 3,
+            side: "RIGHT",
+            body: "Fix this range",
+          },
+        ],
+      },
+    );
+  });
+
   it("reacts to the pull request", async () => {
     const client: GitHubApiClient = {
       request: vi.fn(async () => ({ data: {} })),
@@ -202,5 +257,64 @@ index 1111111..2222222 100644
         body: "Peep is reviewing this PR.",
       },
     );
+  });
+
+  it("lists review comments with diff metadata", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({
+        data: [
+          {
+            id: 123,
+            body: "Fix this",
+            path: "src/example.ts",
+            line: 12,
+            side: "RIGHT",
+            start_line: 10,
+            start_side: "RIGHT",
+            original_line: 11,
+            original_start_line: 9,
+            diff_hunk: "@@ -10,1 +10,3 @@",
+            user: { login: "peep[bot]" },
+            created_at: "2026-06-16T00:00:00Z",
+            updated_at: "2026-06-16T00:01:00Z",
+            url: "https://api.github.com/comment/123",
+            html_url: "https://github.com/bobrware/peep/pull/42#discussion_r123",
+          },
+        ],
+      })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      client,
+    });
+
+    await expect(adapter.listReviewComments()).resolves.toEqual([
+      {
+        id: 123,
+        body: "Fix this",
+        path: "src/example.ts",
+        line: 12,
+        side: "RIGHT",
+        startLine: 10,
+        startSide: "RIGHT",
+        originalLine: 11,
+        originalStartLine: 9,
+        diffHunk: "@@ -10,1 +10,3 @@",
+        author: "peep[bot]",
+        createdAt: "2026-06-16T00:00:00Z",
+        updatedAt: "2026-06-16T00:01:00Z",
+        url: "https://api.github.com/comment/123",
+        htmlUrl: "https://github.com/bobrware/peep/pull/42#discussion_r123",
+      },
+    ]);
   });
 });

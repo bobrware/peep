@@ -23,10 +23,12 @@ describe("executeWebhookEvent", () => {
       body: "Body",
       author: "alice",
       draft: false,
+      fetchDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       comment: vi.fn(async () => {}),
       listReviewComments: vi.fn(async () => []),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
+      submitReviewComments: vi.fn(async () => {}),
       submitReview,
     }));
     const createLlm = vi.fn(() => ({
@@ -104,10 +106,12 @@ describe("executeWebhookEvent", () => {
       body: "Body",
       author: "alice",
       draft: false,
+      fetchDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       comment: vi.fn(async () => {}),
       listReviewComments: vi.fn(async () => []),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
+      submitReviewComments: vi.fn(async () => {}),
       submitReview: vi.fn(async () => {}),
     }));
     const handler = vi.fn(async () => {});
@@ -136,10 +140,12 @@ describe("executeWebhookEvent", () => {
       body: "Body",
       author: "alice",
       draft: false,
+      fetchDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       comment: vi.fn(async () => {}),
       listReviewComments: vi.fn(async () => []),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
+      submitReviewComments: vi.fn(async () => {}),
       submitReview: vi.fn(async () => {}),
     }));
     const handler = vi.fn(async () => {});
@@ -173,10 +179,12 @@ describe("executeWebhookEvent", () => {
       body: "Body",
       author: "alice",
       draft: false,
+      fetchDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       comment: vi.fn(async () => {}),
       listReviewComments: vi.fn(async () => []),
       fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
       react: vi.fn(async () => {}),
+      submitReviewComments: vi.fn(async () => {}),
       submitReview,
     }));
     const createLlm = vi.fn(() => ({
