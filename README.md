@@ -6,6 +6,8 @@ You provide a `peep.config.ts` file that defines GitHub App credentials, LLM set
 
 Peep is intentionally a small core. Review policy belongs in user config: schemas, severity systems, filtering, comments, reactions, and event behavior are all controlled by the consumer.
 
+This repository's root `peep.config.ts` is a dogfood consumer of Peep, not part of Peep's library API. It contains this project's opinionated review policy, formatting, severity/category schema, and deduplication behavior as an example of what consumers can build on top of the primitives.
+
 ## Status
 
 This project is currently MVP/dogfood-stage.
