@@ -6,17 +6,23 @@ export type AiSdkProviderConfig = {
   provider: "openrouter";
   apiKey: string;
   model: string;
+  timeoutMs?: number;
 };
 
 export function createLlmPort<TObject = unknown, TSchema extends FlexibleSchema = FlexibleSchema>({
   provider,
   apiKey,
   model,
+  timeoutMs = 60_000,
 }: AiSdkProviderConfig): LlmPort<TObject, TSchema> {
   const openrouter = createOpenAICompatible({
     name: provider,
     apiKey,
     baseURL: "https://openrouter.ai/api/v1",
+    headers: {
+      "HTTP-Referer": "https://github.com/bobrware/peep",
+      "X-Title": "Peep",
+    },
   });
 
   return {
@@ -26,8 +32,10 @@ export function createLlmPort<TObject = unknown, TSchema extends FlexibleSchema 
       try {
         const result = await generateText({
           model: openrouter(model),
+          maxRetries: 0,
           output: Output.json(),
           prompt: promptWithJsonInstruction,
+          timeout: timeoutMs,
         });
 
         return parseSchemaObject(schema, result.output) as TObject;

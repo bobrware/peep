@@ -94,6 +94,7 @@ export type PeepConfig = {
     provider: "openrouter";
     apiKey: string;
     model: string;
+    timeoutMs?: number;
   };
   rules: string[];
   on: {

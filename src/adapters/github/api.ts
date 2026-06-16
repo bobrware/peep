@@ -74,6 +74,8 @@ export async function createGitHubPullRequestAdapter({
     },
 
     async fetchPullRequestDiff() {
+      logger.info({ owner, repo, pullNumber }, "fetching pull request diff");
+
       const response = await apiClient.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
         owner,
         repo,
@@ -83,7 +85,14 @@ export async function createGitHubPullRequestAdapter({
         },
       });
 
-      return getStringData(response);
+      const diff = getStringData(response);
+
+      logger.info(
+        { owner, repo, pullNumber, bytes: Buffer.byteLength(diff) },
+        "fetched pull request diff",
+      );
+
+      return diff;
     },
 
     async comment(body) {
@@ -98,6 +107,8 @@ export async function createGitHubPullRequestAdapter({
     },
 
     async listReviewComments() {
+      logger.info({ owner, repo, pullNumber }, "listing pull request review comments");
+
       const response = await apiClient.request(
         "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
         {
@@ -107,7 +118,14 @@ export async function createGitHubPullRequestAdapter({
         },
       );
 
-      return getReviewComments(response);
+      const comments = getReviewComments(response);
+
+      logger.info(
+        { owner, repo, pullNumber, reviewComments: comments.length },
+        "listed pull request review comments",
+      );
+
+      return comments;
     },
 
     async react(content) {
@@ -143,6 +161,11 @@ export async function createGitHubPullRequestAdapter({
         body: buildReviewCommentsBody(comments, options),
         comments: comments.map(toGitHubReviewComment),
       });
+
+      logger.info(
+        { owner, repo, pullNumber, inlineComments: comments.length },
+        "submitted pull request review comments",
+      );
     },
 
     async submitReview(findings, options = {}) {
@@ -168,6 +191,11 @@ export async function createGitHubPullRequestAdapter({
         body: buildReviewBody(findings, options),
         comments,
       });
+
+      logger.info(
+        { owner, repo, pullNumber, findings: findings.length, inlineComments: comments.length },
+        "submitted pull request review",
+      );
     },
   };
 

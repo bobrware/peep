@@ -28,6 +28,7 @@ export default defineConfig({
     provider: "openrouter",
     apiKey: requiredEnv("OPENROUTER_API_KEY", "OPENROUTER_KEY"),
     model: process.env.OPENROUTER_MODEL ?? "z-ai/glm-5.1",
+    timeoutMs: Number(process.env.OPENROUTER_TIMEOUT_MS ?? 60_000),
   },
   rules: [
     "Only report concrete correctness, security, or maintainability issues introduced by this diff.",

@@ -59,19 +59,24 @@ export async function executeWebhookEvent({
     draft: event.pullRequest.draft,
     logger,
   });
-  const llm = createLlm(config.llm);
+  const llm = createLoggedLlm(createLlm(config.llm), config.llm, logger);
 
   await handler({
     pr,
     agent: {
       async review<TFinding extends ReviewFinding = Finding>(options?: ReviewOptions) {
         const schema = options?.schema ?? findingSchema.array();
+        logger.info("starting agent review");
         const findings = await reviewPullRequest({
-          vcs: pr,
+          vcs: createLoggedVcs(pr, logger),
           llm,
           rules: config.rules,
           schema,
         });
+        logger.info(
+          { findings: Array.isArray(findings) ? findings.length : undefined },
+          "agent review completed",
+        );
 
         return findings as TFinding[];
       },
@@ -83,4 +88,84 @@ export async function executeWebhookEvent({
 
 function createDefaultLlm(config: PeepConfig["llm"]): LlmPort<Finding[], FlexibleSchema> {
   return createLlmPort<Finding[]>(config);
+}
+
+function createLoggedVcs(
+  vcs: GitHubPullRequestAdapter,
+  logger: PeepLogger,
+): GitHubPullRequestAdapter {
+  return {
+    ...vcs,
+    async fetchPullRequestDiff() {
+      const startedAt = Date.now();
+
+      logger.info("fetching pull request diff for review");
+
+      try {
+        const diff = await vcs.fetchPullRequestDiff();
+
+        logger.info(
+          { durationMs: Date.now() - startedAt, bytes: Buffer.byteLength(diff) },
+          "fetched pull request diff for review",
+        );
+
+        return diff;
+      } catch (error) {
+        logger.error(
+          { error, durationMs: Date.now() - startedAt },
+          "failed to fetch pull request diff",
+        );
+        throw error;
+      }
+    },
+  };
+}
+
+function createLoggedLlm<TObject, TSchema>(
+  llm: LlmPort<TObject, TSchema>,
+  config: PeepConfig["llm"],
+  logger: PeepLogger,
+): LlmPort<TObject, TSchema> {
+  return {
+    async generateObject(options) {
+      const startedAt = Date.now();
+
+      logger.info(
+        {
+          provider: config.provider,
+          model: config.model,
+          promptChars: options.prompt.length,
+          timeoutMs: config.timeoutMs ?? 60_000,
+        },
+        "calling llm for structured review",
+      );
+
+      try {
+        const result = await llm.generateObject(options);
+
+        logger.info(
+          {
+            durationMs: Date.now() - startedAt,
+            provider: config.provider,
+            model: config.model,
+            objects: Array.isArray(result) ? result.length : undefined,
+          },
+          "llm structured review completed",
+        );
+
+        return result;
+      } catch (error) {
+        logger.error(
+          {
+            error,
+            durationMs: Date.now() - startedAt,
+            provider: config.provider,
+            model: config.model,
+          },
+          "llm structured review failed",
+        );
+        throw error;
+      }
+    },
+  };
 }
