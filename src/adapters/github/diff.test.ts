@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapFindingsToReviewComments } from "./diff.js";
+import { mapFindingsToReviewComments, prepareReviewFindings } from "./diff.js";
 
 const diff = `diff --git a/src/one.ts b/src/one.ts
 index 1111111..2222222 100644
@@ -50,6 +50,25 @@ describe("mapFindingsToReviewComments", () => {
         diff,
       ),
     ).toEqual([{ path: "src/two.ts", line: 20, side: "RIGHT", body: "Second file" }]);
+  });
+
+  it("prepares mapped comments and returns unmappable findings", () => {
+    const missingFinding = {
+      path: "src/two.ts",
+      line: 99,
+      side: "RIGHT" as const,
+      message: "Missing",
+    };
+
+    expect(
+      prepareReviewFindings(
+        [{ path: "src/two.ts", line: 20, side: "RIGHT", message: "Second file" }, missingFinding],
+        diff,
+      ),
+    ).toEqual({
+      comments: [{ path: "src/two.ts", line: 20, side: "RIGHT", body: "Second file" }],
+      unmappableFindings: [missingFinding],
+    });
   });
 
   it("maps valid multi-line findings to GitHub range comments", () => {
