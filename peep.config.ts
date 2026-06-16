@@ -1,5 +1,10 @@
 import { defineConfig, findingSchema, prepareReviewFindings, z } from "./src/index.js";
-import type { PullRequestEventContext, ReviewComment, ReviewCommentDraft } from "./src/index.js";
+import type {
+  PullRequestEventContext,
+  PullRequestReviewCommentCreatedContext,
+  ReviewComment,
+  ReviewCommentDraft,
+} from "./src/index.js";
 
 const pepperSeveritySchema = z.enum(["bell", "jalapeno", "habanero", "ghost"]);
 const categorySchema = z.enum([
@@ -75,6 +80,9 @@ export default defineConfig({
       await pr.react("eyes");
       await reviewReadyPullRequestWithFailureComment(context);
     },
+    "pull_request_review_comment.created": async (context) => {
+      await handleReviewCommentReply(context);
+    },
   },
 });
 
@@ -124,6 +132,59 @@ async function reviewReadyPullRequest({ pr, agent }: PullRequestEventContext): P
       ? "REQUEST_CHANGES"
       : "COMMENT",
   });
+}
+
+async function handleReviewCommentReply({
+  pr,
+  comment,
+}: PullRequestReviewCommentCreatedContext): Promise<void> {
+  if (isBotAuthor(comment.author) || !isCloseFindingRequest(comment.body)) {
+    return;
+  }
+
+  const rootCommentId = comment.inReplyToId ?? comment.id;
+  const rootComment = await pr.getReviewComment(rootCommentId);
+
+  if (!isPeepReviewComment(rootComment)) {
+    return;
+  }
+
+  const threads = await pr.listReviewThreads();
+  const thread = threads.find((candidate) =>
+    candidate.comments.some((threadComment) => threadComment.id === rootComment.id),
+  );
+
+  if (thread === undefined) {
+    await pr.replyToReviewComment(
+      rootComment.id,
+      "I couldn't find the GitHub review thread for this comment, so I can't mark it resolved yet.",
+    );
+    return;
+  }
+
+  if (!thread.isResolved) {
+    await pr.resolveReviewThread(thread.id);
+  }
+
+  await pr.replyToReviewComment(
+    rootComment.id,
+    "Got it — marking this Peep finding resolved. Thanks for the correction.",
+  );
+}
+
+function isBotAuthor(author: string | undefined): boolean {
+  return author?.endsWith("[bot]") ?? false;
+}
+
+function isCloseFindingRequest(body: string): boolean {
+  return /\b(invalid|false positive|close this|resolve this|dismiss this)\b/i.test(body);
+}
+
+function isPeepReviewComment(comment: ReviewComment): boolean {
+  return (
+    comment.body.includes("_⚠️ Potential issue_") &&
+    comment.body.includes("🤖 Prompt for AI Agents")
+  );
 }
 
 function filterExistingLocationComments(
