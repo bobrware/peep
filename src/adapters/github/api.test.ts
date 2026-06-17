@@ -259,6 +259,199 @@ index 1111111..2222222 100644
     );
   });
 
+  it("replies to pull request review comments", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({
+        data: {
+          id: 456,
+          in_reply_to_id: 123,
+          body: "Thanks, fixed.",
+          path: "src/example.ts",
+          line: 12,
+          side: "RIGHT",
+          user: { login: "peep[bot]" },
+        },
+      })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      client,
+    });
+
+    await expect(adapter.replyToReviewComment(123, "Thanks, fixed.")).resolves.toEqual({
+      id: 456,
+      inReplyToId: 123,
+      body: "Thanks, fixed.",
+      path: "src/example.ts",
+      line: 12,
+      side: "RIGHT",
+      author: "peep[bot]",
+    });
+    expect(client.request).toHaveBeenCalledWith(
+      "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
+      {
+        owner: "bobrware",
+        repo: "peep",
+        pull_number: 42,
+        comment_id: 123,
+        body: "Thanks, fixed.",
+      },
+    );
+  });
+
+  it("gets pull request review comments", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({
+        data: {
+          id: 123,
+          body: "Original comment",
+          path: "src/example.ts",
+          line: 12,
+          side: "RIGHT",
+          user: { login: "peep[bot]" },
+        },
+      })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      client,
+    });
+
+    await expect(adapter.getReviewComment(123)).resolves.toEqual({
+      id: 123,
+      body: "Original comment",
+      path: "src/example.ts",
+      line: 12,
+      side: "RIGHT",
+      author: "peep[bot]",
+    });
+    expect(client.request).toHaveBeenCalledWith(
+      "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}",
+      {
+        owner: "bobrware",
+        repo: "peep",
+        comment_id: 123,
+      },
+    );
+  });
+
+  it("lists pull request review threads", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({
+        data: {
+          repository: {
+            pullRequest: {
+              reviewThreads: {
+                nodes: [
+                  {
+                    id: "PRRT_kwDOExample",
+                    isResolved: false,
+                    comments: {
+                      nodes: [
+                        {
+                          databaseId: 123,
+                          body: "Original comment",
+                          author: { login: "peep[bot]" },
+                          path: "src/example.ts",
+                          line: 12,
+                          diffHunk: "@@ -10,1 +10,3 @@",
+                          createdAt: "2026-06-16T00:00:00Z",
+                          updatedAt: "2026-06-16T00:01:00Z",
+                          url: "https://github.com/bobrware/peep/pull/42#discussion_r123",
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      client,
+    });
+
+    await expect(adapter.listReviewThreads()).resolves.toEqual([
+      {
+        id: "PRRT_kwDOExample",
+        isResolved: false,
+        comments: [
+          {
+            id: 123,
+            body: "Original comment",
+            author: "peep[bot]",
+            path: "src/example.ts",
+            line: 12,
+            diffHunk: "@@ -10,1 +10,3 @@",
+            createdAt: "2026-06-16T00:00:00Z",
+            updatedAt: "2026-06-16T00:01:00Z",
+            url: "https://github.com/bobrware/peep/pull/42#discussion_r123",
+          },
+        ],
+      },
+    ]);
+    expect(client.request).toHaveBeenCalledWith("POST /graphql", {
+      query: expect.stringContaining("reviewThreads"),
+      variables: { owner: "bobrware", repo: "peep", pullNumber: 42 },
+    });
+  });
+
+  it("resolves pull request review threads", async () => {
+    const client: GitHubApiClient = {
+      request: vi.fn(async () => ({ data: {} })),
+    };
+    const adapter = await createGitHubPullRequestAdapter({
+      appId: "app",
+      privateKey: "key",
+      installationId: 123,
+      owner: "bobrware",
+      repo: "peep",
+      pullNumber: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      client,
+    });
+
+    await adapter.resolveReviewThread("PRRT_kwDOExample");
+
+    expect(client.request).toHaveBeenCalledWith("POST /graphql", {
+      query: expect.stringContaining("resolveReviewThread"),
+      variables: { threadId: "PRRT_kwDOExample" },
+    });
+  });
+
   it("lists review comments with diff metadata", async () => {
     const client: GitHubApiClient = {
       request: vi.fn(async () => ({

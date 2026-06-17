@@ -6,9 +6,14 @@ export type PullRequestEventContext = {
   agent: ReviewAgent;
 };
 
+export type PullRequestReviewCommentEventContext = PullRequestEventContext & {
+  comment: ReviewComment;
+};
+
 export type PullRequestOpenedContext = PullRequestEventContext;
 export type PullRequestReadyForReviewContext = PullRequestEventContext;
 export type PullRequestSynchronizeContext = PullRequestEventContext;
+export type PullRequestReviewCommentCreatedContext = PullRequestReviewCommentEventContext;
 
 export type PullRequestContext = {
   owner: string;
@@ -20,8 +25,12 @@ export type PullRequestContext = {
   draft: boolean;
   fetchDiff: () => Promise<string>;
   comment: (body: string) => Promise<void>;
+  getReviewComment: (commentId: number) => Promise<ReviewComment>;
   listReviewComments: () => Promise<ReviewComment[]>;
+  listReviewThreads: () => Promise<ReviewThread[]>;
   react: (content: ReactionContent) => Promise<void>;
+  replyToReviewComment: (commentId: number, body: string) => Promise<ReviewComment>;
+  resolveReviewThread: (threadId: string) => Promise<void>;
   submitReviewComments: (
     comments: ReviewCommentDraft[],
     options?: SubmitReviewOptions,
@@ -35,6 +44,7 @@ export type PullRequestContext = {
 export type ReviewComment = {
   id: number;
   body: string;
+  inReplyToId?: number;
   path?: string;
   line?: number;
   side?: "LEFT" | "RIGHT";
@@ -57,6 +67,12 @@ export type ReviewCommentDraft = {
   line: number;
   side: "LEFT" | "RIGHT";
   body: string;
+};
+
+export type ReviewThread = {
+  id: string;
+  isResolved: boolean;
+  comments: ReviewComment[];
 };
 
 export type ReactionContent =
@@ -103,5 +119,8 @@ export type PeepConfig = {
       context: PullRequestReadyForReviewContext,
     ) => Promise<void> | void;
     "pull_request.synchronize"?: (context: PullRequestSynchronizeContext) => Promise<void> | void;
+    "pull_request_review_comment.created"?: (
+      context: PullRequestReviewCommentCreatedContext,
+    ) => Promise<void> | void;
   };
 };

@@ -20,6 +20,7 @@ export type {
 export type { GitHubReviewComment, PreparedReviewFindings } from "./adapters/github/diff.js";
 export type {
   GitHubPullRequestOpenedEvent,
+  GitHubReviewCommentEvent,
   GitHubWebhookEvent,
   ParseGitHubWebhookOptions,
   VerifyGitHubSignatureOptions,
@@ -33,8 +34,11 @@ export type { GenerateObjectOptions, LlmPort } from "./ports/llm.js";
 export type {
   PeepConfig,
   PullRequestEventContext,
+  PullRequestReviewCommentCreatedContext,
+  PullRequestReviewCommentEventContext,
   ReviewComment,
   ReviewCommentDraft,
+  ReviewThread,
 } from "./ports/config.js";
 export type { VcsPort } from "./ports/vcs.js";
 export type { ExecuteWebhookEventOptions } from "./runtime/execute.js";
