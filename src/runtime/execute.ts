@@ -9,7 +9,7 @@ import { reviewPullRequest } from "../core/pipeline.js";
 import { findingSchema, type Finding, type ReviewFinding } from "../core/schema.js";
 import type { FlexibleSchema } from "ai";
 import type { LlmPort } from "../ports/llm.js";
-import type { PeepConfig, ReviewComment, ReviewOptions } from "../ports/config.js";
+import type { AnalyzeOptions, PeepConfig, ReviewComment, ReviewOptions } from "../ports/config.js";
 import { logger as defaultLogger, type PeepLogger } from "./logger.js";
 
 export type ExecuteWebhookEventOptions = {
@@ -65,24 +65,35 @@ export async function executeWebhookEvent({
     pr,
     ...(isReviewCommentEvent(event) ? { comment: toReviewComment(event.comment) } : {}),
     agent: {
-      async review<TFinding extends ReviewFinding = Finding>(options?: ReviewOptions) {
-        const schema = options?.schema ?? findingSchema.array();
-        logger.info("starting agent review");
-        const findings = await reviewPullRequest({
-          vcs: createLoggedVcs(pr, logger),
-          llm,
-          rules: config.rules,
-          schema,
-        });
-        logger.info(
-          { findings: Array.isArray(findings) ? findings.length : undefined },
-          "agent review completed",
-        );
+      async analyze<TFinding extends ReviewFinding = Finding>(options?: AnalyzeOptions) {
+        if (options?.strategy === "sandbox") {
+          throw new Error("Sandbox analysis is not implemented yet.");
+        }
 
-        return findings as TFinding[];
+        return analyzeDiff<TFinding>(options);
+      },
+      async review<TFinding extends ReviewFinding = Finding>(options?: ReviewOptions) {
+        return analyzeDiff<TFinding>(options);
       },
     },
   };
+
+  async function analyzeDiff<TFinding extends ReviewFinding = Finding>(options?: ReviewOptions) {
+    const schema = options?.schema ?? findingSchema.array();
+    logger.info("starting agent review");
+    const findings = await reviewPullRequest({
+      vcs: createLoggedVcs(pr, logger),
+      llm,
+      rules: config.rules,
+      schema,
+    });
+    logger.info(
+      { findings: Array.isArray(findings) ? findings.length : undefined },
+      "agent review completed",
+    );
+
+    return findings as TFinding[];
+  }
 
   await handler(context as never);
 

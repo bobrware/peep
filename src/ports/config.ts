@@ -86,14 +86,22 @@ export type ReactionContent =
   | "eyes";
 
 export type ReviewAgent = {
+  analyze: <TFinding extends ReviewFinding = Finding>(
+    options?: AnalyzeOptions,
+  ) => Promise<TFinding[]>;
   review: <TFinding extends ReviewFinding = Finding>(
     options?: ReviewOptions,
   ) => Promise<TFinding[]>;
 };
 
-export type ReviewOptions = {
+export type AnalysisStrategy = "diff" | "sandbox";
+
+export type AnalyzeOptions = {
+  strategy?: AnalysisStrategy;
   schema?: FlexibleSchema;
 };
+
+export type ReviewOptions = Omit<AnalyzeOptions, "strategy">;
 
 export type SubmitReviewOptions = {
   event?: "COMMENT" | "REQUEST_CHANGES" | "APPROVE";
@@ -111,6 +119,15 @@ export type PeepConfig = {
     apiKey: string;
     model: string;
     timeoutMs?: number;
+  };
+  sandbox?: {
+    provider: "e2b";
+    apiKey: string;
+    timeoutMs?: number;
+    maxSteps?: number;
+    commands?: {
+      allow?: string[];
+    };
   };
   rules: string[];
   on: {

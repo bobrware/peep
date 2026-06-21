@@ -41,7 +41,7 @@ describe("executeWebhookEvent", () => {
       ]),
     }));
     const handler = vi.fn(async ({ agent, pr }) => {
-      const findings = await agent.review();
+      const findings = await agent.analyze();
       await pr.submitReview(findings, { event: "COMMENT" });
     });
     const config: PeepConfig = {
@@ -285,5 +285,88 @@ describe("executeWebhookEvent", () => {
     expect(submitReview).toHaveBeenCalledWith([
       { path: "file.ts", line: 1, side: "RIGHT", message: "ghost: Fix this" },
     ]);
+  });
+
+  it("keeps agent.review as a diff analysis compatibility alias", async () => {
+    const submitReview = vi.fn(async () => {});
+    const createPullRequestAdapter = vi.fn(async () => ({
+      owner: "bobrware",
+      repo: "peep",
+      number: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      fetchDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
+      comment: vi.fn(async () => {}),
+      getReviewComment: vi.fn(async () => ({ id: 1, body: "comment" })),
+      listReviewComments: vi.fn(async () => []),
+      listReviewThreads: vi.fn(async () => []),
+      fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
+      react: vi.fn(async () => {}),
+      replyToReviewComment: vi.fn(async () => ({ id: 1, body: "reply" })),
+      resolveReviewThread: vi.fn(async () => {}),
+      submitReviewComments: vi.fn(async () => {}),
+      submitReview,
+    }));
+    const createLlm = vi.fn(() => ({
+      generateObject: vi.fn(async () => [
+        { path: "file.ts", line: 1, side: "RIGHT" as const, message: "Fix this" },
+      ]),
+    }));
+    const config: PeepConfig = {
+      github: { appId: "app", privateKey: "key", webhookSecret: "secret" },
+      llm: { provider: "openrouter", apiKey: "api-key", model: "model" },
+      rules: [],
+      on: {
+        "pull_request.opened": async ({ agent, pr }) => {
+          await pr.submitReview(await agent.review());
+        },
+      },
+    };
+
+    await executeWebhookEvent({ config, event, createPullRequestAdapter, createLlm });
+
+    expect(submitReview).toHaveBeenCalledWith([
+      { path: "file.ts", line: 1, side: "RIGHT", message: "Fix this" },
+    ]);
+  });
+
+  it("fails clearly when sandbox analysis is requested before sandbox support is wired", async () => {
+    const createPullRequestAdapter = vi.fn(async () => ({
+      owner: "bobrware",
+      repo: "peep",
+      number: 42,
+      title: "Add feature",
+      body: "Body",
+      author: "alice",
+      draft: false,
+      fetchDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
+      comment: vi.fn(async () => {}),
+      getReviewComment: vi.fn(async () => ({ id: 1, body: "comment" })),
+      listReviewComments: vi.fn(async () => []),
+      listReviewThreads: vi.fn(async () => []),
+      fetchPullRequestDiff: vi.fn(async () => "diff --git a/file.ts b/file.ts"),
+      react: vi.fn(async () => {}),
+      replyToReviewComment: vi.fn(async () => ({ id: 1, body: "reply" })),
+      resolveReviewThread: vi.fn(async () => {}),
+      submitReviewComments: vi.fn(async () => {}),
+      submitReview: vi.fn(async () => {}),
+    }));
+    const config: PeepConfig = {
+      github: { appId: "app", privateKey: "key", webhookSecret: "secret" },
+      llm: { provider: "openrouter", apiKey: "api-key", model: "model" },
+      sandbox: { provider: "e2b", apiKey: "e2b-key" },
+      rules: [],
+      on: {
+        "pull_request.opened": async ({ agent }) => {
+          await agent.analyze({ strategy: "sandbox" });
+        },
+      },
+    };
+
+    await expect(executeWebhookEvent({ config, event, createPullRequestAdapter })).rejects.toThrow(
+      "Sandbox analysis is not implemented yet.",
+    );
   });
 });
