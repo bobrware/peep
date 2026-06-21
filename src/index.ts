@@ -32,6 +32,8 @@ export type { ReviewPullRequestOptions } from "./core/pipeline.js";
 export type { ReviewResult } from "./core/types.js";
 export type { GenerateObjectOptions, LlmPort } from "./ports/llm.js";
 export type {
+  AnalysisStrategy,
+  AnalyzeOptions,
   PeepConfig,
   PullRequestEventContext,
   PullRequestReviewCommentCreatedContext,
@@ -40,6 +42,13 @@ export type {
   ReviewCommentDraft,
   ReviewThread,
 } from "./ports/config.js";
+export type {
+  SandboxCreateInput,
+  SandboxPort,
+  SandboxRunOptions,
+  SandboxRunResult,
+  SandboxSession,
+} from "./ports/sandbox.js";
 export type { VcsPort } from "./ports/vcs.js";
 export type { ExecuteWebhookEventOptions } from "./runtime/execute.js";
 export type { CreateWebhookServerOptions, StartWebhookServerOptions } from "./runtime/server.js";
